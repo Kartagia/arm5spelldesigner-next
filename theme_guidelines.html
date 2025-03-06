@@ -1,0 +1,31 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="src/app/globals.css" >
+    <title>Graphical guidelines</title>
+</head>
+<body>
+    <h1>Colors</h1>
+    <dl>
+        <dt>Primary</dt>
+        <dd>Color HEX: A80000 (R: 168, G: 0, B: 0). <span color="var(--primary)" background="var(--background)">Primary color.</span></dd>
+        <dt>Background</dt>
+        <dd>Color HEX: FCF5E5 (R: 252, G: 245, B: 229). <span color="var(--background)" background="var(--primary)">Background color.</span></dd>
+        <dt>Foreground</dt>
+        <dd>Color HEX: 171717 (R: 23, G: 23, B: 23). <span color="var(--foreground)" background="var(--background)">Foreground color.</span></dd>
+    </dl>
+    <h2>Primary</h2>
+    <p>Primary on background has contrast ratio of 7.25, fulfilling GCAG AAA on normal text.
+        <a href="https://webaim.org/resources/contrastchecker/?fcolor=A80000&bcolor=FCF5E5">Contrast check for primary on background.</a>
+    </p>
+    <p>Background on primary has contrast ratio of 7.25, fulfilling GCG AAA on normal text. 
+        <a href="https://webaim.org/resources/contrastchecker/?fcolor=FCF5E5&bcolor=A80000">Contrast check for background on primary.</a>
+    </p>
+    <p>Foreground on background has contrast ration of 16.5.
+        <a href="https://webaim.org/resources/contrastchecker/?fcolor=171717&bcolor=A80000">Contrast check for forefround on background.</a>
+    </p>
+</body>
+</html>
