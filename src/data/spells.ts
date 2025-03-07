@@ -257,7 +257,13 @@ export interface SpellRequisite {
     value: number;
     art: GUID | ArtKey;
 }
-function requisiteToJson(requisite: SpellRequisite): string {
+
+/**
+ * Convert a spell requisite to JSOn forma.t
+ * @param requisite The converted requisite.
+ * @returns The JSON formatted spell requisite object.
+ */
+export function requisiteToJson(requisite: SpellRequisite): string {
 
     return "{" +
         `art: ${requisite.art}, ` +
@@ -266,7 +272,46 @@ function requisiteToJson(requisite: SpellRequisite): string {
         "\"operator\":\"+\", " +
         "}";
 }
-export type ArtKey = "";
+
+/**
+ * The class reprsenting an art key.
+ */
+export class ArtKey {
+
+    static validArtKey(key: string): boolean {
+        return /^[A-Z][a-z]{1,5}$/.test(key);
+    }
+
+    /**
+     * The representation of the art key.
+     */
+    private rep: string;
+
+    /**
+     * Create a new art key.
+     * @param key The key content.
+     * @throws {SyntaxError} The key is not a valid Art Key.
+     */
+    constructor(key: string) {
+        if (this.validArtKey(key)) {
+            this.rep = key;
+        } else {
+            throw new SyntaxError("Invalid art key");
+        }
+    }
+
+    validArtKey(key: string): boolean {
+        return ArtKey.validArtKey(key);
+    }
+
+    toString() {
+        return this.rep;
+    }
+
+    toJSON() {
+        return JSON.stringify(this.toString());
+    }
+}
 
 export type RDT = {
     guid?: GUID;
