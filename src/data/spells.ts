@@ -3,6 +3,7 @@
  * Module containing spell related types and methods.
  */
 
+import { getTargetTriple } from "next/dist/build/swc/generated-native";
 import { GUID } from "./guid";
 
 /**
@@ -103,6 +104,153 @@ export class Spell implements SpellPojo {
     }
 }
 
+/**
+ * A tag is a valid reference to a value in mechanics.
+ */
+export class Tag {
+
+    /**
+     * The tag value.
+     */
+    _tag: string;
+
+    constructor(tag: string) {
+        this._tag = this.check(tag);
+    }
+
+    /**
+     * Check the validity of a tag value.
+     * @param value the tested value.
+     * @param param1 The options of the check.
+     * @returns A valid tag content.
+     * @throws {SyntaxError} The value was not a valid value.
+     */
+    static check(value: any, {message = "Invalid tag content"}={}): string {
+        if (typeof value == "string" && /^([a-z]\w*)(?:\.[a-z]\w+)*$/.test(value)) {
+            return value;
+        } else {
+            throw new SyntaxError(message);
+        }
+
+    }
+
+    /**
+     * Check the validity of a tag value.
+     * @param value the tested value.
+     * @param options The options of the check.
+     * @returns A valid tag content.
+     * @throws {SyntaxError} The value was not a valid value.
+     */
+    check(value: any, options={}): string {
+        return Tag.check(value, options);
+    }
+
+    /**
+     * Convert the value to string.
+     * @returns The string content of the tag.
+     */
+    toString() {
+        return this._tag;
+    }
+}
+
+/**
+ * An interface of game mechanics.
+ */
+export interface GameMechanics<TARGET> {
+    /**
+     * The modified target.
+     */
+    target: TARGET;
+
+    /**
+     * The name of the modifier.
+     */
+    name?: string;
+
+    /**
+     * The tag 
+     */
+    tag?: string;
+
+}
+
+export interface OperatorFunction<TARGET, VALUE> {(target : TARGET, value : VALUE): VALUE};
+
+export class QuotedString {
+
+    /**
+     * The content of the quoted string.
+     */
+    _content;
+
+    constructor(content: string) {
+        this._content = this.check(content);
+    }
+
+    static check(value: any, {message="Invalid quoted string content"}): string {
+        if (typeof value === "string" && /^\"(?:[^\"\\]+|\\["\\])*\"$/.test(value)) {
+            return value;
+        } else {
+            throw new SyntaxError(message);
+        }
+    }
+
+    check(value: any, options={}) {
+        return QuotedString.check(value, options);
+    }
+
+    toString() {
+        return this._content;
+    }
+
+    toJSON() {
+        return this.toString();
+    }
+}
+
+export interface Operator<TARGET, VALUE> {
+
+    /**
+     * Calculate the operator result.
+     * @param target The target value.
+     * @param value The operator value.
+     */
+    apply(target: TARGET, value: VALUE): VALUE;
+}
+
+export class DefaultOperator<TYPE> implements Operator<TYPE, TYPE> {
+
+    operator: OperatorFunction<TYPE, TYPE>;
+
+    constructor( fn : OperatorFunction<TYPE, TYPE>) {
+        this.operator = fn; 
+    }
+
+    apply(source: TYPE, value: TYPE): TYPE {
+        return this.operator(source, value);
+    }
+}
+
+/**
+ * A modifier interface.
+ */
+export interface Modifier<TARGET, VALUE = (boolean|number|QuotedString)> extends GameMechanics<TARGET> {
+
+    /**
+     * The operator. 
+     */
+    operator: OperatorFunction<TARGET, VALUE>;
+
+    /**
+     * The value of the operator.
+     */
+    value: VALUE;
+}
+
+/**
+ * The spell requisite. 
+ */
 export interface SpellRequisite {
 
     requisite: "optional" | "required" | "cosmetic";
