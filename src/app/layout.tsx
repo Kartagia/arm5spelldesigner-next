@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Image from "next/image";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,9 +26,35 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased h-screen`}
       >
+        <header className="top-0 flex flex-col h-10 justify-between fixed bg-primary text-background">
+          <h1 className="justify-center w-screen">Ars Magica Spell Designer</h1>
+        </header>
+        <main className="mb-auto h-10 bg-background">
         {children}
+        </main>
+        <footer className="bottom-0 fixed bg-secondary">
+          <div className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
+        <a
+          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
+          href="https://atlas-games.com/arsmagica/openars"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Link to Ars Magica Open License document"
+        >
+          <Image
+            aria-hidden
+            src="/arm5openlicenselogo.png"
+            alt="Ars Magica Open License logo"
+            width={180}
+            height={38}
+          />
+        </a>
+        </div>
+        <div className="text-xs">Ars Magica Open License Logo ©2024 Trident, Inc. The Ars Magica Open License Logo, Ars Magica, and Mythic Europe are trademarks of Trident, Inc., and are used with permission.</div>
+        <div className="text-xs">Order of Hermes, Tremere, Doissetep, and Grimgroth are trademarks of Paradox Interactive AB and are used with permission.</div>
+        </footer>
       </body>
     </html>
   );
