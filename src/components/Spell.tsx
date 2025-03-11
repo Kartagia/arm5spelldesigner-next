@@ -136,6 +136,10 @@ export default async function SpellComponent(props: PropsWithChildren<SpellPojo 
                 ).join("")
                 }</td><td>{
                     spell.ranges.map( range => (<span>{range.name}</span>) ).join("/")
+                }</td><td>{
+                    spell.durations.map( range => (<span>{range.name}</span>) ).join("/")
+                }</td><td>{
+                    spell.targets.map( range => (<span>{range.name}</span>) ).join("/")
                 }</td></tr>)
         case "card":
             return <div>
@@ -149,6 +153,15 @@ export default async function SpellComponent(props: PropsWithChildren<SpellPojo 
                                 )            
                         )
                     }</article>
+                    <article><b>Range:</b>{
+                    spell.ranges.map( range => (<span>{range.name}</span>) ).join("/")
+                }</article>
+                    <article><b>Duration:</b>{
+                    spell.durations.map( range => (<span>{range.name}</span>) ).join("/")
+                }</article>
+                    <article><b>Target:</b>{
+                    spell.targets.map( range => (<span>{range.name}</span>) ).join("/")
+                }</article>
                 </main>
                 <footer></footer>
             </div>
@@ -161,6 +174,10 @@ export default async function SpellComponent(props: PropsWithChildren<SpellPojo 
                     ).join("")}</span>
                 }, R: {
                     spell.ranges.map( range => (<span>{range.name}</span>) ).join("/")
+                }, D: {
+                    spell.durations.map( range => (<span>{range.name}</span>) ).join("/")
+                }, T: {
+                    spell.targets.map( range => (<span>{range.name}</span>) ).join("/")
                 })</>);
     }
 
