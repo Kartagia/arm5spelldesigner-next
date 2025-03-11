@@ -4,6 +4,7 @@
  * This module provides Art related model. 
  */
 
+import { GUID } from "./guid";
 import { ArtKey } from "./spells";
 
 export interface CheckOptions {
@@ -35,6 +36,7 @@ export class Art {
      * The length of the default abbreviation generated from the art name.
      */
     defaultAbbrevLength: number;
+    myGuid: GUID | undefined;
 
 
     /**
@@ -45,7 +47,10 @@ export class Art {
      * @param defaultAbbrevLength The default abbreviation length.
      * @throws {SyntaxError} Any parameter was invalid.
      */
-    constructor(name : string, type: string, abbrev:string|undefined=undefined, defaultAbbrevLength=2) {
+    constructor(name : string, type: string, abbrev:string|undefined=undefined, defaultAbbrevLength=2,
+        guid: GUID|undefined = undefined
+    ) {
+        this.myGuid = guid;
         this.myName = this.checkName(name);
         this.myType = this.checkType(type);
         this.myAbbrev = this.checkAbbrev(abbrev);
@@ -64,6 +69,10 @@ export class Art {
      */
     get type() {
         return this.myType;
+    }
+
+    get guid() {
+        return this.myGuid;
     }
 
     /**
@@ -185,8 +194,9 @@ export class Technique extends Art {
     /**
      * {@inheritDoc}
      */
-    constructor(name : string, style : string = "Hermetic", abbrev : string|undefined = undefined, defaultAbbrevLength : number = 2) {
-        super(name, `${style} Technique`, abbrev, defaultAbbrevLength);
+    constructor(name : string, style : string = "Hermetic", abbrev : string|undefined = undefined, defaultAbbrevLength : number = 2, 
+        guid: GUID|undefined=undefined) {
+        super(name, `${style} Technique`, abbrev, defaultAbbrevLength, guid);
     }
 }
 
