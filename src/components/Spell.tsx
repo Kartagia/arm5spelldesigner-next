@@ -38,11 +38,11 @@ function createArt(guid: GUID, name: string, type: "Technique"|"Form", abbrev: s
 }
 
 const techniques : Array<Art> = ["Creo", "Intellego", "Muto", "Perdo", "Rego"].map( (artName, index) => ( 
-    createArt((new GUID(BigInt(index))), artName, "Technique")));
+    createArt((new GUID(BigInt(index) | (BigInt(15) << (BigInt(4 * (12 + 3)))))), artName, "Technique")));
 
 const forms : Array<Art> = ["Animal", "Aquam", "Auram", "Corpus", "Herbam", "Ignem", "Imaginem", "Mentem", "Terram", "Vim"].map(
     (artName, index) => (
-        createArt((new GUID(BigInt(index + techniques.length))), artName, "Form")
+        createArt((new GUID(BigInt(index + techniques.length) | (BigInt(15) << (BigInt(4 * (12 + 3)))))), artName, "Form")
     )
 );
 

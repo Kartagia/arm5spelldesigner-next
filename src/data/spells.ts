@@ -320,7 +320,7 @@ export type RDT = {
     description?: string;
     secondaryRDTs: GUID[];
 };
-type RDTInfo = {
+export type RDTInfo = {
     guid?: GUID;
     name: string;
     modifier: number;
