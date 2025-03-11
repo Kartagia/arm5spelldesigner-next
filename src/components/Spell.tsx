@@ -1,10 +1,11 @@
 import { GUID } from '@/data/guid';
 import { ArtKey, Spell, SpellPojo, SpellRequisite } from '@/data/spells';
 import React, { PropsWithChildren, ReactElement, Suspense } from 'react';
-import { promiseHooks } from 'v8';
+import { ArtComponent, ArtPojo } from './Art';
+import Art from '@/data/arts';
 
 interface SpellViewProps {
-    mode: "row"|"card"
+    mode: "row"|"card"|""
 }
 
 function isGUID(value: any) {
@@ -18,31 +19,18 @@ function checkGUID(value: any, options: {message?: string, lenient?: boolean} = 
     return value instanceof GUID ? value : GUID.fromString(value, options);
 }
 
-interface Art {
-    guid: GUID,
-    name: string,
-    abbrev: string,
-    type: "Technique"|"Form"
+
+function createArt(name: string, type: string, abbrev: string|undefined = undefined): ArtPojo {
+    const art = new Art(name, type, abbrev, undefined, GUID.createV4());
+    return art;
 }
 
-function createArt(guid: GUID, name: string, type: "Technique"|"Form", abbrev: string|undefined = undefined): Art {
+const techniques : Array<ArtPojo> = ["Creo", "Intellego", "Muto", "Perdo", "Rego"].map( (artName, index) => ( 
+    createArt((GUID.createV4().toString()), artName, "Technique")));
 
-    return {
-        guid, 
-        name,
-        type,
-        get abbrev() {
-            return abbrev ? abbrev : this.name.substring(0,2)
-        }
-    };
-}
-
-const techniques : Array<Art> = ["Creo", "Intellego", "Muto", "Perdo", "Rego"].map( (artName, index) => ( 
-    createArt((new GUID(BigInt(index) | (BigInt(15) << (BigInt(4 * (12 + 3)))))), artName, "Technique")));
-
-const forms : Array<Art> = ["Animal", "Aquam", "Auram", "Corpus", "Herbam", "Ignem", "Imaginem", "Mentem", "Terram", "Vim"].map(
+const forms : Array<ArtPojo> = ["Animal", "Aquam", "Auram", "Corpus", "Herbam", "Ignem", "Imaginem", "Mentem", "Terram", "Vim"].map(
     (artName, index) => (
-        createArt((new GUID(BigInt(index + techniques.length) | (BigInt(15) << (BigInt(4 * (12 + 3)))))), artName, "Form")
+        createArt(GUID.createV4().toString(), artName, "Form")
     )
 );
 
@@ -50,8 +38,8 @@ const forms : Array<Art> = ["Animal", "Aquam", "Auram", "Corpus", "Herbam", "Ign
  * The mapping from GUID to art name.
  */
 const arts : Map<string, Art>= new Map([
-    ...techniques.map( art => ([art.guid.toString(), art])), 
-    ...forms.map( art => ([art.guid.toString(), art]))
+    ...techniques.map( art => ([art.guid?.toString(), art])), 
+    ...forms.map( art => ([art.guid?.toString(), art]))
 ] as [string, Art][]);
 
 function fetchArt(guid: GUID):Promise<Art> {
@@ -73,30 +61,74 @@ export async function SpellRequisiteComponent(props: SpellRequisite & SpellViewP
                 if (isGUID(props.art)) {
                     fetchArt(checkGUID(props.art)).then(
                         (art) => {
-                            return (<span>{art.abbrev}</span>)
+                            return (<span>{art.abbrev.toString()}</span>)
                         }
                     )
                 } else {
-                    resolve(<span>props.art.toString()</span>)
+                    resolve(<span>{props.art.toString()}</span>)
                 }
             });
     }
 }
 
+export async function ArtReference({ref}: {ref: GUID|ArtKey|Art}): Promise<Art> {
+
+    return new Promise( (resolve, reject) => {
+        if (isGUID(ref)) {
+
+        } else if (ref instanceof ArtKey) {
+            const result = arts.values().find( art => (art.abbrev.toString() === ref.toString()));
+            if (result) {
+                resolve(result);
+            } else {
+                reject();
+            }
+        } else {
+            const result = arts.values().find( art => (art.name === (ref as Art).name));
+            if (result) {
+                resolve(result);
+            } else {
+                reject();
+            }
+        }
+    });
+}
+
 export default async function SpellComponent(props: PropsWithChildren<SpellPojo & SpellViewProps>): Promise<ReactElement> {
 
     const requisites : SpellRequisite[] = await Promise.all((props.requisites.map( async req => (isGUID(req.art)?{...req, 
-        art: new ArtKey((await fetchArt(checkGUID(req))).abbrev)}:{...req}))));
+        art: new ArtKey((await fetchArt(checkGUID(req))).abbrev.toString())}:{...req}))));
     const spell = {
         requisites,
         name: props.name,
         level: props.level,
-        ranges: props.ranges
+        ranges: props.ranges,
+        durations: props.durations,
+        targets: props.targets,
+        technique: props.technique,
+        form: props.form
     };
 
     switch (props.mode) {
         case "row":
-            return (<tr><td>{spell.name}</td><td>{spell.level}</td><td>{
+            return (<tr><td>{spell.name}</td><td><Suspense fallback={"Loading"}>{new Promise( (resolve, reject) => {
+                if (spell.technique instanceof GUID) {
+                    fetchArt(spell.technique).then( (art) => {
+                        resolve(<ArtComponent name={art.name} abbrev={art.abbrev} type={art.type} style={art.style} mode={props.mode} />);
+                    })
+                } else if (spell.technique instanceof ArtKey) {
+                    const art : Art|undefined = [...arts.entries()].find( ([_, value]) => (
+                        value.abbrev.toString() === spell.technique?.toString()))?.[1];
+                    if (art) {
+                       resolve(<ArtComponent name={art.name} abbrev={art.abbrev} type={art.type} style={art.style} mode={props.mode} />);
+                    } else {
+                        reject();
+                    }
+                } else {
+                    const art = spell.technique;
+                    resolve(<ArtComponent name={art.name} abbrev={art.abbrev} type={art.type} style={art.style} mode={props.mode} />);
+                }
+            })}</Suspense></td><td></td><td>{spell.level}</td><td>{
                 spell.requisites.map(
                     (requisite, index) => (<Suspense key={index} fallback={"Loading"}>
                     <SpellRequisiteComponent requisite={requisite.requisite} art={requisite.art} value={requisite.value} mode={props.mode}/></Suspense>
