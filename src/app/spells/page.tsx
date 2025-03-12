@@ -6,7 +6,9 @@ import { ReactElement } from "react";
 export default function Spells() {
 
     const spells : Array<ReactElement> = [
-        (<Spell key={`Demons eternal oblivion(Generic)`} name="Demons eternal oblivion" level="Generic" requisites={[] as SpellRequisite[]}
+        (<Spell key={`Demons eternal oblivion(Generic)`} 
+            technique={new ArtKey("Pe")} form={new ArtKey("Vi")}
+            name="Demons eternal oblivion" level="Generic" requisites={[] as SpellRequisite[]}
         ranges={
             [
                 {
@@ -39,6 +41,7 @@ export default function Spells() {
         mode={"card"}
         />),
         (<Spell key={`Cloak of Ducks Feathers`} name="Cloak of Ducks Feathers" level={4} 
+            technique={new ArtKey("Re")} form={new ArtKey("Aq")}
             requisites={[
                 {
                     requisite: "required",
