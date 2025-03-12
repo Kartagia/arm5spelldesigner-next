@@ -68,9 +68,8 @@ export class GUID {
 
     toString() {
         const hexString = this.value.toString(16);
-        const result = "0".repeat(128 / 4 - hexString.length);
-        return [result.substring(0, 8), result.substring(8, 12), result.substring(12, 16), result.substring(16, 20),
-        result.substring(20)
+        const result = "0".repeat(128 / 4 - hexString.length) + hexString;
+        return [result.substring(0, 8), result.substring(8, 12), result.substring(12, 16), result.substring(16, 20), result.substring(20)
 
         ].join("-");
     }
