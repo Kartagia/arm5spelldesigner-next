@@ -1,5 +1,5 @@
 import { GUID } from '@/data/guid';
-import { ArtKey, Spell, SpellPojo, SpellRequisite } from '@/data/spells';
+import { ArtKey, RDT, RDTInfo, Spell, SpellPojo, SpellRequisite } from '@/data/spells';
 import React, { PropsWithChildren, ReactElement, Suspense } from 'react';
 import { ArtComponent, ArtPojo } from './Art';
 import Art from '@/data/arts';
@@ -21,16 +21,16 @@ function checkGUID(value: any, options: {message?: string, lenient?: boolean} = 
 
 
 function createArt(name: string, type: string, abbrev: string|undefined = undefined): ArtPojo {
-    const art = new Art(name, type, abbrev, undefined, GUID.createV4());
+    const art = new Art(name, type, abbrev, 2, GUID.createV4());
     return art;
 }
 
 const techniques : Array<ArtPojo> = ["Creo", "Intellego", "Muto", "Perdo", "Rego"].map( (artName, index) => ( 
-    createArt((GUID.createV4().toString()), artName, "Technique")));
+    createArt(artName, "Technique")));
 
 const forms : Array<ArtPojo> = ["Animal", "Aquam", "Auram", "Corpus", "Herbam", "Ignem", "Imaginem", "Mentem", "Terram", "Vim"].map(
     (artName, index) => (
-        createArt(GUID.createV4().toString(), artName, "Form")
+        createArt(artName, "Form")
     )
 );
 
@@ -51,6 +51,31 @@ function fetchArt(guid: GUID):Promise<Art> {
     }
 }
 
+interface RDTComponentProps {
+    rdt: RDT|RDTInfo|Array<RDT|RDTInfo>
+}
+
+/**
+ * Create a RDT component.
+ * @param props The properties of the component.
+ */
+export async function RDTComponent(props: RDTComponentProps & SpellViewProps): Promise<ReactElement> {
+    return new Promise( (resolve, reject) => {
+        switch (props.mode) {
+            default:
+                resolve(<>{(Array.isArray(props.rdt)?props.rdt:[props.rdt]).map( rdt => (<span key={rdt.name} className="rdt">{
+                        rdt.name
+                    }</span>
+                ))}</>)
+        }
+    });
+}
+
+/**
+ * Component viewing a spell requisites.
+ * @param props The properites of the spell requisites.
+ * @returns The promise of the component as the rendering might require asynchronous wait.
+ */
 export async function SpellRequisiteComponent(props: SpellRequisite & SpellViewProps): Promise<ReactElement> {
 
     switch (props.mode) {
@@ -134,13 +159,11 @@ export default async function SpellComponent(props: PropsWithChildren<SpellPojo 
                     <SpellRequisiteComponent requisite={requisite.requisite} art={requisite.art} value={requisite.value} mode={props.mode}/></Suspense>
                     )
                 ).join("")
-                }</td><td>{
-                    spell.ranges.map( range => (<span>{range.name}</span>) ).join("/")
-                }</td><td>{
-                    spell.durations.map( range => (<span>{range.name}</span>) ).join("/")
-                }</td><td>{
-                    spell.targets.map( range => (<span>{range.name}</span>) ).join("/")
-                }</td></tr>)
+                }</td>
+                <td><RDTComponent rdt={spell.ranges} mode={props.mode}/></td>
+                <td><RDTComponent rdt={spell.durations} mode={props.mode}/></td>
+                <td><RDTComponent rdt={spell.targets} mode={props.mode}/></td>
+                </tr>)
         case "card":
             return <div>
                 <header><h1>{spell.name}</h1></header>
@@ -153,15 +176,9 @@ export default async function SpellComponent(props: PropsWithChildren<SpellPojo 
                                 )            
                         )
                     }</article>
-                    <article><b>Range:</b>{
-                    spell.ranges.map( range => (<span>{range.name}</span>) ).join("/")
-                }</article>
-                    <article><b>Duration:</b>{
-                    spell.durations.map( range => (<span>{range.name}</span>) ).join("/")
-                }</article>
-                    <article><b>Target:</b>{
-                    spell.targets.map( range => (<span>{range.name}</span>) ).join("/")
-                }</article>
+                    <article><b>Range:</b><RDTComponent rdt={spell.ranges} mode={props.mode}/></article>
+                    <article><b>Duration:</b><RDTComponent rdt={spell.durations} mode={props.mode}/></article>
+                    <article><b>Target:</b><RDTComponent rdt={spell.targets} mode={props.mode}/></article>
                 </main>
                 <footer></footer>
             </div>
@@ -172,13 +189,11 @@ export default async function SpellComponent(props: PropsWithChildren<SpellPojo 
                         <SpellRequisiteComponent requisite={requisite.requisite} art={requisite.art} value={requisite.value} mode={props.mode}/></Suspense>
                         )
                     ).join("")}</span>
-                }, R: {
-                    spell.ranges.map( range => (<span>{range.name}</span>) ).join("/")
-                }, D: {
-                    spell.durations.map( range => (<span>{range.name}</span>) ).join("/")
-                }, T: {
-                    spell.targets.map( range => (<span>{range.name}</span>) ).join("/")
-                })</>);
+                },
+                R: <RDTComponent rdt={spell.ranges} mode={props.mode}/>,
+                D: <RDTComponent rdt={spell.durations} mode={props.mode}/>,
+                T: <RDTComponent rdt={spell.targets} mode={props.mode}/>
+                )</>);
     }
 
     return (<div></div>)
