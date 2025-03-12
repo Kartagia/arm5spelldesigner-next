@@ -154,7 +154,7 @@ export class Art {
      */
     static checkType(value: any, options: CheckOptions = {}): string {
         const {message = "Invalid name"} : CheckOptions = options;
-        if (typeof value === "string" && /^([A-Z][a-z]+\s)*[A-Z][a-z]$/.test(value)) {
+        if (typeof value === "string" && /^([A-Z][a-z]+\s)*[A-Z][a-z]+$/.test(value)) {
             return value;
         } else {
             throw new SyntaxError(message);
