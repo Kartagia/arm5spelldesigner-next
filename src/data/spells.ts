@@ -5,11 +5,23 @@
 
 import { getTargetTriple } from "next/dist/build/swc/generated-native";
 import { GUID } from "./guid";
+import Art from "./arts";
 
 /**
  * The spell data structure without methods.
  */
 export interface SpellPojo {
+
+    /**
+     * The primary technique of the spell.
+     */
+    technique: Art|ArtKey|GUID;
+
+    /**
+     * The primary form of the spell.
+     */
+    form: Art|ArtKey|GUID;
+
     /**
      * The name of the spell.
      */
@@ -49,6 +61,8 @@ export interface SpellPojo {
  * A spell implements methods to the POJO.
  */
 export class Spell implements SpellPojo {
+    technique: GUID | Art | ArtKey;
+    form: GUID | Art | ArtKey;
 
 
 
@@ -58,6 +72,8 @@ export class Spell implements SpellPojo {
      * @param guid The GUID associated to the spell.
      */
     constructor(pojo: SpellPojo, guid: GUID | undefined = undefined) {
+        this.technique = pojo.technique;
+        this.form = pojo.form;
         this.name = pojo.name;
         this.ranges = [...pojo.ranges];
         this.durations = [...pojo.durations];
@@ -320,7 +336,7 @@ export type RDT = {
     description?: string;
     secondaryRDTs: GUID[];
 };
-type RDTInfo = {
+export type RDTInfo = {
     guid?: GUID;
     name: string;
     modifier: number;
