@@ -62,17 +62,21 @@ export class GUID {
         this.value = value;
         const strRep = this.toString();
         if (! (validate(strRep) && BigInt(uuidVersion(strRep)) === version)) {
-            throw new SyntaxError("Invalid UUID value");
+            throw new SyntaxError("Invalid UUID value" + (validate(strRep) ? `- Invalid version ${uuidVersion(strRep)}` : `- ${strRep} is invalid`));
         }
     }
 
-    toString() {
-        const hexString = this.value.toString(16);
-        const result = "0".repeat(128 / 4 - hexString.length);
+    static toString(value: bigint|BigInt): string {
+        const hexString = value.toString(16);
+        const result = "0".repeat(128 / 4 - hexString.length) + hexString;
         return [result.substring(0, 8), result.substring(8, 12), result.substring(12, 16), result.substring(16, 20),
         result.substring(20)
 
         ].join("-");
+    }
+
+    toString() {
+        return GUID.toString(this.value);
     }
 
     toJSON() {
