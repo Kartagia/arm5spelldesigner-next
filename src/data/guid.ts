@@ -66,17 +66,12 @@ export class GUID {
         }
     }
 
-    static toString(value: bigint|BigInt): string {
-        const hexString = value.toString(16);
+    toString() {
+        const hexString = this.value.toString(16);
         const result = "0".repeat(128 / 4 - hexString.length) + hexString;
-        return [result.substring(0, 8), result.substring(8, 12), result.substring(12, 16), result.substring(16, 20),
-        result.substring(20)
+        return [result.substring(0, 8), result.substring(8, 12), result.substring(12, 16), result.substring(16, 20), result.substring(20)
 
         ].join("-");
-    }
-
-    toString() {
-        return GUID.toString(this.value);
     }
 
     toJSON() {
