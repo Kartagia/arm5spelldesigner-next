@@ -1,4 +1,4 @@
-import { Identified, EntryFilter, NotFoundError, UnsupportedError } from "./utils";
+import { Identified, EntryFilter, NotFoundError, UnsupportedError, createIdentified } from "./utils";
 
 /**
  * The data access object. 
@@ -235,5 +235,79 @@ export class BasicDao<TYPE, ID = string> implements Dao<TYPE, ID> {
         } else {
             return Promise.reject(new UnsupportedError({ message: "Deleting values not supported" }));
         }
+    }
+}
+
+/**
+ * The array DAO implementation. 
+ * 
+ * The array day implementation is a in memory DAO using array to store
+ * the DAO entries. 
+ */
+export class ArrayDao<TYPE, ID = string> extends BasicDao<TYPE, ID> {
+
+    private entries: Identified<TYPE, ID>[];
+
+    constructor(params: ArrayDaoParam<TYPE, ID> & DaoListeners<TYPE, ID>) {
+        const { entries, createId = undefined, validValue = TrueValidator, readOnly = false } = params;
+        super({
+            onCreate: params.onCreate,
+            onDelete: params.onDelete,
+            onUpdate: params.onUpdate,
+            getAll: () => {
+                return Promise.resolve([...(this.entries || [])]);
+            },
+            create: (value: TYPE) => {
+                if (createId) {
+                    return validValue(undefined, value).then(
+                        (valid) => {
+                            if (valid) {
+                                return createId(value).then((id) => {
+                                    this.entries?.push(createIdentified(id, value));
+                                    return id;
+                                })
+                            } else {
+                                throw new Error("Invalid value");
+                            }
+                        })
+                } else {
+                    return Promise.reject(new Error("Adding new values not supported"));
+                }
+            },
+            update: (id: ID, value: TYPE) => {
+                if (readOnly) {
+                    return Promise.reject(new Error("Updating values not supported"));
+                }
+                if (this.entries?.find(entry => (entry.id === id))) {
+                    return validValue(id, value).then(
+                        valid => {
+                            if (valid) {
+                                const index = this.entries?.findIndex(entry => (entry.id === id));
+                                if (index !== undefined) {
+                                    this.entries?.splice(index, 1, createIdentified(id, value));
+                                    return true;
+                                } else {
+                                    throw "Not Found";
+                                }
+                            } else {
+                                throw new Error("Invalid value");
+                            }
+                        }
+                    )
+                } else {
+                    return Promise.reject("Not Found");
+                }
+            },
+            delete: (id: ID) => {
+                const index = this.entries?.findIndex(entry => (entry.id === id));
+                if (index !== undefined && index >= 0) {
+                    this.entries?.splice(index, 1);
+                    return Promise.resolve(true);
+                } else {
+                    return Promise.resolve(false);
+                }
+            }
+        });
+        this.entries = [...(entries || [])];
     }
 }
