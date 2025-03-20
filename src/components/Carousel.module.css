@@ -1,0 +1,55 @@
+.carousel {
+    display: flex;
+    flex-direction: row;
+    position: relative;
+    align-items: center;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  .carousel.vertical  {
+    flex-direction: row;
+  }
+  
+  .carousel > .items {
+    display: flex;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    overflow-x: scroll;
+  }
+  
+  .carousel.vertical > .items {
+    scroll-snap-type: y mandatory;
+    overflow-y: scroll;
+    width: auto;
+    height: auto;
+  }
+
+  .carousel.vertical > .carouselControl {
+    /* Rotate controls 90 degrees clockwise. */
+    transform: rotateZ('90');
+  }
+  
+  .carousel > .items > * {
+    scroll-snap-align: start;
+    flex-shrink: 0;
+  }
+  
+  .carousel.vertical > .items > * {
+    scroll-snap-align: top;
+    flex-shrink: 0;
+  }
+  
+
+  .caroucel > .carouselControl.prev {
+    x: 0;
+    y: 0;
+  }
+  
+  .carousel > .carouselControl.next {
+    x: relative;
+    y: 0;
+  }
+
+  .disabled {
+    color: var(--disabled)
+  }
