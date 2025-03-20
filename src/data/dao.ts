@@ -112,15 +112,6 @@ export type ArrayDaoParam<TYPE, ID> = {
      */
     createId?: (value: TYPE) => Promise<ID>,
     /**
-     * The validator function.
-     * @param id The identifier of the tested value. For new values, this is undefined.
-     * @param value The tested value.
-     * @returns The promise determining whether a value is valid or not.
-     * @default TrueValidator The validator accepting all values.
-     */
-    validValue?: (id: ID | undefined, value: TYPE) => Promise<boolean>,
-
-    /**
      * Is the DAO read only.
      * @default false
      */
