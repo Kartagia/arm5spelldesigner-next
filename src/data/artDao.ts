@@ -178,7 +178,15 @@ export class HermeticArtDao extends ArtDao {
     }
 
     constructor(entries : Art[] = []) {
-        super();
+        super(entries.filter( art => (art.style === "Hermetic")));
+    }
+
+    validValue(id:string|undefined, value:Art): Promise<boolean> {
+        return super.validValue(id, value).then(
+            (valid) => {
+                return valid && (value.style === "Hermetic")
+            }
+        )
     }
 }
 
