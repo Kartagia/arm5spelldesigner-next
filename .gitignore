@@ -45,3 +45,5 @@ robots.txt
 sitemap.xml
 sitemap-*.xml
 .idx/dev.nix
+package-lock.json
+package-lock.json
