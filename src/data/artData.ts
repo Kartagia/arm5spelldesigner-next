@@ -1,16 +1,36 @@
 import { promised } from "../../lib/utils";
-import { HermeticArtDao } from "./artDao";
+import { ArtDao, HermeticArtDao } from "./artDao";
 import Art from "./arts";
 import { GUID } from "./guid";
 import { ArtKey } from "./spells";
+import { NotFoundError } from "./utils";
 
+/**
+ * The data source.
+ */
+var artDao: ArtDao = new HermeticArtDao();
 
-var artDao = new HermeticArtDao();
+export function setDataSource(dataSource: ArtDao) {
+    artDao = dataSource;
+}
 
+/**
+ * Get the art. 
+ * @param art The sougth art GUID, art key (abbreviation), or art name (string).
+ * @returns The art, if the used data access source contains the art. If the art is not
+ * found, returns undefined value.
+ */
 export function getArt(art: GUID|ArtKey|string): Art|undefined {
     return promised(fetchArt(art), {lenient: true});
 }
 
+/**
+ * Get the promise of an art.
+ * @param art The sougth art GUID, art key (abbreviation), or art name (string).
+ * @returns The promise of the art. The promise fulfils, if the art is found. The promise
+ * rejects with error, if the art does not exist.
+ * @throws {NotFoundError} The rejection error, if the art was not found.
+ */
 export function fetchArt(art: GUID|ArtKey|string): Promise<Art> {
     if (art instanceof GUID) {
         return artDao.get(art.toString());
