@@ -9,7 +9,8 @@ import { equalRDT, getRDTInfo } from "@/data/rdtData";
 import { urlToHttpOptions } from 'url';
 import { Style } from 'util';
 import { redirect } from 'next/dist/server/api-utils';
-import { htmlCollection2Array } from '../../lib/utils';
+import { htmlCollection2Array, promised } from '../../lib/utils';
+import { fetchArts, fetchArt } from '@/data/artData';
 
 type ViewMode = "row"|"card"|""
 
@@ -87,7 +88,7 @@ function isGUID(value: any) {
     if (value instanceof GUID) {
         return true;
     }
-    return typeof value === "string" && /^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/.test(value);
+    return typeof value === "string" && GUID.GUIDRegex().test(value);
 }
 
 function checkGUID(value: any, options: {message?: string, lenient?: boolean} = {}): GUID {
@@ -98,38 +99,6 @@ function checkGUID(value: any, options: {message?: string, lenient?: boolean} = 
 function createArt(name: string, type: string, abbrev: string|undefined = undefined): ArtPojo {
     const art = new Art(name, type, abbrev, undefined, GUID.createV4());
     return art;
-}
-
-/**
- * The hermetic techniques. 
- */
-const techniques : Array<ArtPojo> = ["Creo", "Intellego", "Muto", "Perdo", "Rego"].map( (artName, index) => ( 
-    createArt(artName, "Technique")));
-
-/**
- * The hermetic forms.
- */
-const forms : Array<ArtPojo> = ["Animal", "Aquam", "Auram", "Corpus", "Herbam", "Ignem", "Imaginem", "Mentem", "Terram", "Vim"].map(
-    (artName, index) => (
-        createArt(artName, "Form")
-    )
-);
-
-/**
- * The mapping from GUID to art name.
- */
-const arts : Map<string, Art>= new Map([
-    ...techniques.map( art => ([art.guid?.toString(), art])), 
-    ...forms.map( art => ([art.guid?.toString(), art]))
-] as [string, Art][]);
-
-function fetchArt(guid: GUID):Promise<Art> {
-    const result = arts.get(guid.toString());
-    if (result !== undefined) {
-        return Promise.resolve(result);
-    } else {
-        return Promise.reject();
-    }
 }
 
 export async function SpellRequisiteComponent(props: SpellRequisite & SpellViewProps): Promise<ReactElement> {
@@ -153,32 +122,12 @@ export async function SpellRequisiteComponent(props: SpellRequisite & SpellViewP
 }
 
 /**
- * 
- * @param param0 
- * @returns 
+ * Solve a reference to an art.
+ * @param param0 The art referece as property "ref". 
+ * @returns The promise of the referred art.
  */
 export async function ArtReference({ref}: {ref: GUID|ArtKey|Art}): Promise<Art> {
-
-    return new Promise( (resolve, reject) => {
-        if (ref instanceof GUID) {
-            // The reference is a GUID to an art.
-            getArt(ref).then( resolve, reject );
-        } else if (ref instanceof ArtKey) {
-            const result = arts.values().find( art => (art.abbrev.toString() === ref.toString()));
-            if (result) {
-                resolve(result);
-            } else {
-                reject();
-            }
-        } else {
-            const result = arts.values().find( art => (art.name === (ref as Art).name));
-            if (result) {
-                resolve(result);
-            } else {
-                reject();
-            }
-        }
-    });
+    return fetchArt(ref instanceof Art ? ref.name : ref);
 }
 
 /**
@@ -563,15 +512,6 @@ export function RDTEntryComponent(props: RDTEntryComponentProps): ReactElement {
     }
 }
 
-export async function getArt(id: GUID): Promise<Art> {
-    const result = arts.get(id.toString());
-    if (result) {
-        return result;
-    } else {
-        throw new Error("Invalid art");
-    }
-}
-
 export function ArtEditorComponent(props: { 
     id?: string, 
     choices: Art[],
@@ -596,7 +536,7 @@ export function ArtEditorComponent(props: {
 
     if (props.value instanceof GUID) {
         return (<Suspense fallback="Loading">{
-            getArt(props.value).then(
+            fetchArt(props.value).then(
                 art => {
                     const arts = [ ...(new Set<Art>([...props.choices, art]).values())];
                     return (<Carousel values={arts} onChange={ (index) => {
@@ -738,8 +678,16 @@ export default async function SpellComponent(props: PropsWithChildren<SpellPojo 
                         resolve(<ArtComponent name={art.name} abbrev={art.abbrev} type={art.type} style={art.style} mode={props.mode} />);
                     })
                 } else if (spell.technique instanceof ArtKey) {
-                    const art : Art|undefined = [...arts.entries()].find( ([_, value]) => (
-                        value.abbrev.toString() === spell.technique?.toString()))?.[1];
+                    const art : Art|undefined = promised(fetchArts( (_id:string, value:Art) => (
+                        value.abbrev.toString() === spell.technique?.toString())).then(
+                            values => {
+                                if (values.length > 0) {
+                                    return values[0].value
+                                } else {
+                                    return undefined;
+                                }
+                            }
+                        ));
                     if (art) {
                        resolve(<ArtComponent name={art.name} abbrev={art.abbrev} type={art.type} style={art.style} mode={props.mode} />);
                     } else {
