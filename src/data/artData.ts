@@ -10,6 +10,10 @@ import { NotFoundError } from "./utils";
  */
 var artDao: ArtDao = new HermeticArtDao();
 
+/**
+ * Set the current data source.
+ * @param dataSource The new data source.
+ */
 export function setDataSource(dataSource: ArtDao) {
     artDao = dataSource;
 }
