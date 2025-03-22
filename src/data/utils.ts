@@ -65,12 +65,6 @@ export type ArrayPredicate<TYPE, ID = string> = (entry: [ID, TYPE], index: numbe
 export type IterPredicate<TYPE, ID = string> = (entry: [ID, TYPE], index: number) => boolean;
 
 /**
- * The error for not found value.
- */
-export const NotFoundError = "Not Found";
-
-
-/**
  * The exception pojo for serialization of an exception.
  */
 export type ExceptionPOJO<CAUSE = undefined, DETAILS = undefined> = {
@@ -125,6 +119,46 @@ export class Exception<CAUSE = undefined, DETAILS = undefined> extends Error {
         });
     }
 }
+
+
+/**
+ * The error for not found value.
+ */
+export class NotFoundError<TYPE=string> extends Exception<any, TYPE> {
+
+    static defaultError = "Resource not found";
+
+    static generateError(resourceName: string) {
+        return `The ${resourceName} not found`;
+    }
+
+    constructor({message=NotFoundError.defaultError, details=undefined, cause=undefined}:{
+        message:string, 
+        cause: any,
+        details:TYPE|undefined}) {
+        super({message, details, cause});
+    }
+}
+
+
+/**
+ * The error for an invalid value.
+ */
+export class InvalidValueError<CAUSE=any, DETAIL=string> extends Exception<any, DETAIL> {
+
+
+    static generateError(resourceName: string) {
+        return `Invalid ${resourceName}`;
+    }
+
+    static defaultError = InvalidValueError.generateError("value");
+
+
+    constructor({message=InvalidValueError.defaultError, details=undefined, cause=undefined}:Partial<ExceptionPOJO<CAUSE, DETAIL>>) {
+        super({message, details, cause});
+    }
+}
+
 
 /**
  * The error indicating something is not supported.
