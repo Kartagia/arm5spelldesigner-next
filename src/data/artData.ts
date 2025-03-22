@@ -3,7 +3,7 @@ import { ArtDao, HermeticArtDao } from "./artDao";
 import Art from "./arts";
 import { GUID } from "./guid";
 import { ArtKey } from "./spells";
-import { NotFoundError } from "./utils";
+import { EntryFilter, Identified, NotFoundError } from "./utils";
 
 /**
  * The data source.
@@ -43,4 +43,13 @@ export function fetchArt(art: GUID|ArtKey|string): Promise<Art> {
     } else {
         return artDao.getByName(art);
     }
+}
+
+/**
+ * Get arts.
+ * @param filter The optional filter for filtering arts.
+ * @returns The promise of arts passing the filter.
+ */
+export function fetchArts(filter: EntryFilter<Art> = () => true): Promise<Identified<Art>[]> {
+    return artDao.getSome(filter);
 }
