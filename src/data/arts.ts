@@ -18,6 +18,18 @@ export interface CheckOptions {
 export class Art {
 
     /**
+     * The regular expression matching to an art.
+     * @returns The regular expression matchinng to an art.
+     */
+    static ArtNameRegex() {
+        return /^[A-Z][a-z]+$/;
+    }
+
+    static ArtAbbrevRegex() {
+        return /^[A-Z][a-z]{1,5}$/;
+    }
+
+    /**
      * The art name.
      */
     private myName;
@@ -99,7 +111,7 @@ export class Art {
      */
     static checkName(value: any, options: CheckOptions = {}): string {
         const {message = "Invalid name"} : CheckOptions = options;
-        if (typeof value === "string" && /^[A-Z][a-z]+$/.test(value)) {
+        if (typeof value === "string" && Art.ArtNameRegex().test(value)) {
             return value;
         } else {
             throw new SyntaxError(message);
@@ -126,7 +138,7 @@ export class Art {
      */
     static checkAbbrev(value: any, options: CheckOptions = {}): string|undefined {
         const {message = "Invalid abbreviation"} : CheckOptions = options;
-        if (value === undefined || (typeof value === "string" && /^[A-Z][a-z]{1,5}$/.test(value)) ) {
+        if (value === undefined || (typeof value === "string" && Art.ArtAbbrevRegex().test(value)) ) {
             return value;
         } else {
             throw new SyntaxError(message);
