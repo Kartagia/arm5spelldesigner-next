@@ -7,6 +7,51 @@ import { getTargetTriple } from "next/dist/build/swc/generated-native";
 import { GUID } from "./guid";
 import Art from "./arts";
 
+export interface SpellGuideline {
+    /**
+     * The name of the guideline. The name must end into a comma.
+     */
+    name: string,
+    /**
+     * The level of the guideline.
+     */
+    level: Level,
+    /**
+     * The technique of the guideline.
+     */
+    technique: ArtKey,
+    /**
+     * The form of the guideline.
+     */
+    form: ArtKey,
+    /**
+     * The description of the guideline.
+     */
+    description?: string
+
+    /**
+     * The special tags of the guideline such requires ritual, or specific kind of magic.
+     */
+    tags?: string[];
+}
+
+export class BasicSpellGuideline implements SpellGuideline {
+    name: string;
+    level: Level;
+    technique: ArtKey;
+    form: ArtKey;
+    description: string | undefined;
+
+    constructor({ name, level, technique, form, description = undefined }: SpellGuideline) {
+        this.name = name;
+        this.level = level;
+        this.technique = technique;
+        this.form = form;
+        this.description = description;
+    }
+}
+
+
 /**
  * The spell data structure without methods.
  */
@@ -15,12 +60,12 @@ export interface SpellPojo {
     /**
      * The primary technique of the spell.
      */
-    technique: Art|ArtKey|GUID;
+    technique: Art | ArtKey | GUID;
 
     /**
      * The primary form of the spell.
      */
-    form: Art|ArtKey|GUID;
+    form: Art | ArtKey | GUID;
 
     /**
      * The name of the spell.
@@ -141,7 +186,7 @@ export class Tag {
      * @returns A valid tag content.
      * @throws {SyntaxError} The value was not a valid value.
      */
-    static check(value: any, {message = "Invalid tag content"}={}): string {
+    static check(value: any, { message = "Invalid tag content" } = {}): string {
         if (typeof value == "string" && /^([a-z]\w*)(?:\.[a-z]\w+)*$/.test(value)) {
             return value;
         } else {
@@ -157,7 +202,7 @@ export class Tag {
      * @returns A valid tag content.
      * @throws {SyntaxError} The value was not a valid value.
      */
-    check(value: any, options={}): string {
+    check(value: any, options = {}): string {
         return Tag.check(value, options);
     }
 
@@ -191,7 +236,7 @@ export interface GameMechanics<TARGET> {
 
 }
 
-export interface OperatorFunction<TARGET, VALUE> {(target : TARGET, value : VALUE): VALUE};
+export interface OperatorFunction<TARGET, VALUE> { (target: TARGET, value: VALUE): VALUE };
 
 export class QuotedString {
 
@@ -204,7 +249,7 @@ export class QuotedString {
         this._content = this.check(content);
     }
 
-    static check(value: any, {message="Invalid quoted string content"}): string {
+    static check(value: any, { message = "Invalid quoted string content" }): string {
         if (typeof value === "string" && /^\"(?:[^\"\\]+|\\["\\])*\"$/.test(value)) {
             return value;
         } else {
@@ -212,7 +257,7 @@ export class QuotedString {
         }
     }
 
-    check(value: any, options={}) {
+    check(value: any, options = {}) {
         return QuotedString.check(value, options);
     }
 
@@ -239,8 +284,8 @@ export class DefaultOperator<TYPE> implements Operator<TYPE, TYPE> {
 
     operator: OperatorFunction<TYPE, TYPE>;
 
-    constructor( fn : OperatorFunction<TYPE, TYPE>) {
-        this.operator = fn; 
+    constructor(fn: OperatorFunction<TYPE, TYPE>) {
+        this.operator = fn;
     }
 
     apply(source: TYPE, value: TYPE): TYPE {
@@ -248,54 +293,11 @@ export class DefaultOperator<TYPE> implements Operator<TYPE, TYPE> {
     }
 }
 
-export interface SpellGuideline {
-    /**
-     * The name of the guideline. The name must end into a comma.
-     */
-        name:string, 
-        /**
-         * The level of the guideline.
-         */
-        level: Level,
-        /**
-         * The technique of the guideline.
-         */
-        technique: ArtKey, 
-        /**
-         * The form of the guideline.
-         */
-        form: ArtKey, 
-        /**
-         * The description of the guideline.
-         */
-        description?:string
-
-        /**
-         * The special tags of the guideline such requires ritual, or specific kind of magic.
-         */
-        tags?: string[];
-}
-
-export class BasicSpellGuideline implements SpellGuideline {
-    name: string;
-    level: Level;
-    technique: ArtKey;
-    form: ArtKey;
-    description: string | undefined;
-
-    constructor({name, level, technique, form, description=undefined}:SpellGuideline) {
-        this.name = name;
-        this.level = level;
-        this.technique = technique;
-        this.form = form;
-        this.description = description;
-    }
-}
 
 /**
  * A modifier interface.
  */
-export interface Modifier<TARGET, VALUE = (boolean|number|QuotedString)> extends GameMechanics<TARGET> {
+export interface Modifier<TARGET, VALUE = (boolean | number | QuotedString)> extends GameMechanics<TARGET> {
 
     /**
      * The operator. 
