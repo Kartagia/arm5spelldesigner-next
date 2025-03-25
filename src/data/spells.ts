@@ -3,9 +3,44 @@
  * Module containing spell related types and methods.
  */
 
-import { getTargetTriple } from "next/dist/build/swc/generated-native";
 import { GUID } from "./guid";
 import Art from "./arts";
+
+/**
+ * The interface representing a spell guideline.
+ */
+export interface SpellGuideline {
+    /**
+     * The primary technique of the spell.
+     */
+    technique: Art|ArtKey|GUID;
+
+    /**
+     * The primary form of the spell.
+     */
+    form: Art|ArtKey|GUID;
+
+    /**
+     * The level of the guideline.
+     */
+    level: Level;
+
+    /**
+     * The name of the guideline.
+     */
+    name: string;
+
+    /**
+     * The optional description of the guideline.
+     */
+    desccription?:string;
+
+    /**
+     * Teh special tags of the guideline such requires ritual, or specific kind
+     * of magic.
+     */
+    tags?: string[];
+}
 
 /**
  * The spell data structure without methods.
@@ -296,6 +331,11 @@ export class ArtKey {
 
     static validArtKey(key: string): boolean {
         return /^[A-Z][a-z]{1,5}$/.test(key);
+    }
+
+    static fromArtName(artName: string, abbrevLength: number = 2) {
+        const candidate = artName.substring(1, abbrevLength);
+        return new ArtKey(candidate)
     }
 
     /**
