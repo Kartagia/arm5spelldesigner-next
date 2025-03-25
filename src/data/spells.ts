@@ -248,6 +248,50 @@ export class DefaultOperator<TYPE> implements Operator<TYPE, TYPE> {
     }
 }
 
+export interface SpellGuideline {
+    /**
+     * The name of the guideline. The name must end into a comma.
+     */
+        name:string, 
+        /**
+         * The level of the guideline.
+         */
+        level: Level,
+        /**
+         * The technique of the guideline.
+         */
+        technique: ArtKey, 
+        /**
+         * The form of the guideline.
+         */
+        form: ArtKey, 
+        /**
+         * The description of the guideline.
+         */
+        description?:string
+
+        /**
+         * The special tags of the guideline such requires ritual, or specific kind of magic.
+         */
+        tags?: string[];
+}
+
+export class BasicSpellGuideline implements SpellGuideline {
+    name: string;
+    level: Level;
+    technique: ArtKey;
+    form: ArtKey;
+    description: string | undefined;
+
+    constructor({name, level, technique, form, description=undefined}:SpellGuideline) {
+        this.name = name;
+        this.level = level;
+        this.technique = technique;
+        this.form = form;
+        this.description = description;
+    }
+}
+
 /**
  * A modifier interface.
  */
