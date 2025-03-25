@@ -41,6 +41,13 @@ export function createIdentified<TYPE, ID = string>(id: ID, value: TYPE): Identi
 export type EntryFilter<TYPE, ID = string> = (id: ID, value: TYPE) => boolean;
 
 /**
+ * Predicate testing a value.
+ * @param tested The tested value.
+ * @returns True, if and only if the value passes the test.
+ */
+export type Predicate<TYPE> = (tested: TYPE) => boolean;
+
+/**
  * The entry predicate.
  * @param entry The tested entry.
  * @returns True, if and only if the entry passes the predicate.
