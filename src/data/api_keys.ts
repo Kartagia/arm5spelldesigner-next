@@ -82,7 +82,7 @@ export interface ApiKeyStorage {
  */
 export function generateKey(dataStorage: ApiKeyStorage): string {
     const baseValue = GUID.fromString(randomUUID(), {});
-    return baseValue.value.toString(62);
+    return baseValue.value.toString(36);
 }
 /**
  * The acces methods.
