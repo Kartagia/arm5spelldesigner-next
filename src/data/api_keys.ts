@@ -75,6 +75,11 @@ export interface ApiKeyStorage {
      * @returns The api key storage with api key removed from the keys accessible with route.
      */
     revokeAccess(apiKey: string, route: string | undefined, ...methods: AccessMethods[]): ApiKeyStorage;
+
+    /**
+     * The defualt access, if one is available. 
+     */
+    defaultAccess?: () => ApiKeyPermission;
 }
 
 /**
