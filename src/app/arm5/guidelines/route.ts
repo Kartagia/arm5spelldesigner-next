@@ -1,7 +1,8 @@
 import { Spell, SpellGuideline } from "@/data/spells";
 import { NextRequest, NextResponse } from "next/server";
 import { EntryFilter, Identified, createIdentified, Predicate } from "@/data/utils";
-import { AccessMethods, validApiKey, validApiReadKey, validApiRouteKey } from "@/data/config_api"
+import { AccessMethods } from "@/data/api_keys";
+import { validApiKey, validApiReadKey, validApiRouteKey } from "@/data/config_api"
 /**
  * Test authentication satatus of the request.
  * @param request The tested request.
@@ -312,12 +313,10 @@ export function canAccess(request: NextRequest, route: string = "/spellguideline
 }
 
 /**
- * Get all spell guidelines.
- * @param request The request.
- * @returns The response containing all spell guidelines fulfilling
- * the request.
+ * Get filtered guidelines.
+ * @param request 
  */
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
 
     if (!isAuthenticated(request)) {
         const msg = "Access denied"
@@ -327,12 +326,11 @@ export async function GET(request: NextRequest) {
         const msg = "Access denied"
         const result = Response.json({ message: msg }, { status: 403, statusText: msg });
         return result;
-
     }
 
     var filter: EntryFilter<SpellGuideline, string> = () => true;
-
     try {
+        // Get does not have content
         switch (request.headers.get("Content-Type")) {
             case "application/json":
                 // Handle the JSON parameters. 
@@ -363,6 +361,42 @@ export async function GET(request: NextRequest) {
         default:
             return NextResponse.error();
     }
+    
+}
+
+/**
+ * Get all spell guidelines.
+ * @param request The request.
+ * @returns The response containing all spell guidelines fulfilling
+ * the request.
+ */
+export async function GET(request: NextRequest) {
+
+    if (!isAuthenticated(request)) {
+        const msg = "Access denied"
+        const result = Response.json({ message: msg }, { status: 401, statusText: msg });
+        return result;
+    } else if (!canAccess(request)) {
+        const msg = "Access denied"
+        const result = Response.json({ message: msg }, { status: 403, statusText: msg });
+        return result;
+    }
+
+    var filter: EntryFilter<SpellGuideline, string> = () => true;
+
+
+    const result: Identified<SpellGuideline>[] = [];
+    for (const [key, guideline] of guidelines.entries()) {
+        result.push(createIdentified(key, guideline));
+    }
+
+
+    switch (request.headers.get("Accept")) {
+        case "application/json":
+            return NextResponse.json<Identified<SpellGuideline, string>[]>(result);
+        default:
+            return NextResponse.error();
+    }
 
 }
 
@@ -380,7 +414,7 @@ function isAuthorizedToAlter(request: NextRequest): boolean {
  * Handling storing spell guidelines.
  * @param request The request. 
  */
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest) {
     if (!isAuthorizedToAlter(request)) {
         const msg = "Access denied"
         const result = Response.json({ message: msg }, { status: 403, statusText: msg });
