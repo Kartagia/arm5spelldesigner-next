@@ -1,4 +1,4 @@
-import { Identified, EntryFilter, NotFoundError, UnsupportedError, createIdentified } from "./utils";
+import { Identified, EntryFilter, NotFoundError, UnsupportedError, createIdentified, Predicate, EntryPredicate } from "./utils";
 
 /**
  * The data access object. 
@@ -115,7 +115,12 @@ export type ArrayDaoParam<TYPE, ID> = {
      * Is the DAO read only.
      * @default false
      */
-    readOnly?: boolean
+    readOnly?: boolean;
+
+    /**
+     * Is the value valid value for array predicate.
+     */
+    validValue?: (id: ID|undefined, value: TYPE) => Promise<boolean>;
 }
 
 /**
