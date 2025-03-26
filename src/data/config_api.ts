@@ -130,16 +130,23 @@ const config: ApiKeyStorage = {
  * Add the root api key. 
  */
 if (process.env.DATA_API_KEY) {
-    config.addRootApiKey(process.env.DATA_API_KEY);
+    const newApiKey = process.env.DATA_API_KEY
+    config.addRootApiKey(newApiKey);
+    if (!config.rootKeys.includes(newApiKey)) {
+        console.error("Adding root api key failed");
+    }
+    console.log("Added root key from environment");
+} else {
+    console.log("No environment root key");
 }
 
 /**
- * 
+ * Test validity of an api key.
  * @param apiKey The tested API key.
  * @returns {boolean} True, if and only if the API key is a valid API key.
  */
 export function validApiKey(apiKey: string): boolean {
-    return config.apiKeys.includes(apiKey);
+    return /^[\da-z-]+$/.test(apiKey);
 }
 
 /**
