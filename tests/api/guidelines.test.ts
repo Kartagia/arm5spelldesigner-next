@@ -49,7 +49,7 @@ describe("Module API key", function() {
 describe.concurrent("Testing fetching all guidelines", function() {
 
     test("Fetching all guidelines without API key", async () => {
-        const result = fetch("/arm5/guidelines", {
+        const result = fetch("http://localhost/arm5/guidelines", {
             method: "GET",
             headers: {
                 "Accept": "application/json"
