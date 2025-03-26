@@ -1,7 +1,8 @@
 import { Spell, SpellGuideline } from "@/data/spells";
 import { NextRequest, NextResponse } from "next/server";
 import { EntryFilter, Identified, createIdentified, Predicate } from "@/data/utils";
-import { AccessMethods, validApiKey, validApiReadKey, validApiRouteKey } from "@/data/config_api"
+import { AccessMethods } from "@/data/api_keys";
+import { validApiKey, validApiReadKey, validApiRouteKey } from "@/data/config_api"
 /**
  * Test authentication satatus of the request.
  * @param request The tested request.
