@@ -5,7 +5,7 @@ export class NotFoundError extends ErrorResponse {
     private myGuid : string;
 
     constructor({guid, message = "Resource not found", errorCode = "404"}
-        : (ErrorResponse & {guid: string})
+        : (Pick<ErrorResponse, "message"|"errorCode"> & {guid: string})
     ) {
         super({message, errorCode});
         this.myGuid = guid;
