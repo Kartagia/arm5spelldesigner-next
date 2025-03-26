@@ -47,3 +47,7 @@ sitemap-*.xml
 .idx/dev.nix
 package-lock.json
 package-lock.json
+
+# Ignore route test with API key included. 
+# TODO: remove after the api key is acquired from unimportet environment
+route-test/guidelines.rest
