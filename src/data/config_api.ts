@@ -3,23 +3,109 @@
  */
 
 import { NextConfig } from "next";
+import { AccessMethodList, AccessMethods, ApiKeyPermission, ApiKeyStorage, BasicApiKeyPermission } from "./api_keys";
+import { NotFoundError } from "@/api/NotFoundResponse";
 
-/**
- * The acces methods.
- */
-export type AccessMethods = "GET"|"UPDATE"|"CREATE"|"DELETE"|"ALL";
+var apiKeys: string[] = [];
+var rootKeys: string[] = [];
+var accessPrivileges: Map<string, BasicApiKeyPermission> = new Map();
 
-const config: {apiKeys: string[], rootKeys: string[]} = {
-    apiKeys: [],
-    rootKeys: []
-};
+function parentRoute(route: string): string | undefined {
+    const path = route.split("/");
+    if (path.length === 1) {
+        return undefined;
+    } else if (path[0].length > 0) {
+        // Invalid path.
+        return undefined;
+    } else {
+        return path.slice(0, path.length - 1).join("/");
+    }
+}
+
+const config: ApiKeyStorage = {
+    get apiKeys() { return [...apiKeys] },
+    get rootKeys() { return [...rootKeys] },
+    addApiKey(apiKey: string): ApiKeyStorage {
+        if (apiKeys.includes(apiKey)) {
+            throw Error("Api key reserved");
+        } else if (!validApiKey(apiKey)) {
+            throw Error("Invalid API key");
+        } else {
+            apiKeys.push(apiKey);
+        }
+        return this;
+    },
+
+    addRootApiKey(apiKey: string): ApiKeyStorage {
+        if (!apiKeys.includes(apiKey)) {
+            this.addApiKey(apiKey)
+            rootKeys.push(apiKey);
+        } else if (rootKeys.includes(apiKey)) {
+            throw Error("Key already has root access");
+        } else {
+            rootKeys.push(apiKey);
+        }
+        return this;
+    },
+
+    addAccess(apiKey: string, route: string = "/", ...methods: AccessMethods[]): ApiKeyStorage {
+        if (!apiKeys.includes(apiKey)) {
+            throw new NotFoundError({ message: "Api Key not found", errorCode: "404", guid: apiKey });
+        }
+        if (accessPrivileges.has(route)) {
+            // Route found.
+            accessPrivileges.get(route)?.addAccess(apiKey, ...methods);
+        } else {
+            // Seek parent.
+            var cursor: string | undefined = parentRoute(route);
+            var parent = cursor ? accessPrivileges.get(cursor) : undefined;
+            while (cursor && parent === undefined) {
+                cursor = parentRoute(cursor);
+                parent = cursor ? accessPrivileges.get(cursor) : undefined;
+            }
+            accessPrivileges.set(route, BasicApiKeyPermission.from({ ALL: [], GET: [], UPDATE: [], CREATE: [], DELETE: [] }, parent));
+        }
+        return this;
+    },
+
+    revokeAccess(apiKey: string, route: string = "/", ...methods: AccessMethods[]): ApiKeyStorage {
+        if (!apiKeys.includes(apiKey)) {
+            return this;
+        } else if (rootKeys.includes(apiKey)) {
+            // root key access cannot be removed
+            return this;
+        }
+        if (accessPrivileges.has(route)) {
+            // Route found.
+            accessPrivileges.get(route)?.removeAccess(apiKey, ...methods);
+        } else {
+            // Route does not have privilege. Creating new privilege with permissions revoked.
+            const revoked: Iterable<[AccessMethods, string[]]> = AccessMethodList.map(
+                (method) => {
+                    if (methods.includes(method)) {
+                        return [method, [apiKey] as string[]];
+                    } else {
+                        return [method, []];
+                    }
+                });
+            // Seek parent.
+            var cursor: string | undefined = parentRoute(route);
+            var parent = cursor ? accessPrivileges.get(cursor) : undefined;
+            while (cursor && parent === undefined) {
+                cursor = parentRoute(cursor);
+                parent = cursor ? accessPrivileges.get(cursor) : undefined;
+            }
+            accessPrivileges.set(route, new BasicApiKeyPermission([], revoked, parent));
+        }
+        return this;
+    }
+}
 
 /**
  * Add the root api key. 
  */
 if (process.env.DATA_API_KEY) {
-    config.apiKeys.push(process.env.DATA_API_KEY);
-    config.rootKeys.push(process.env.DATA_API_KEY);
+    config.addRootApiKey(process.env.DATA_API_KEY);
 }
 
 /**
@@ -32,32 +118,6 @@ export function validApiKey(apiKey: string): boolean {
 }
 
 /**
- * The API key perssion determines permission for api keys.
- */
-export interface ApiKeyPermission {
-    /**
-     * The API keys allowed to do all operations for the route.
-     */
-    ALL: string[],
-    /**
-     * The API keys allowed to get existing resources.
-     */
-    GET: string[],
-    /**
-     * The API keys allowed to update existing resources.
-     */
-    UPDATE: string[],
-    /**
-     * The API keys allowed to delete existing resources.
-     */
-    DELETE: string[],
-    /**
-     * The API keys allowed to create new resources.
-     */
-    CREATE: string[]
-}
-
-/**
  * Get route permissions.
  * @param route The route.
  * @returns The api key permissions for the route.
@@ -67,9 +127,19 @@ function getRoutePermissions(route: string): ApiKeyPermission {
     /**
      * @todo Route specific permissions.
      */
+    var permission: ApiKeyPermission | undefined = accessPrivileges.get(route);
+    var cursor: string = route;
+    var parent: string | undefined;
+    while (permission === undefined && (parent = parentRoute(cursor))) {
+        permission = accessPrivileges.get(cursor);
+        cursor = parent;
+    }
+    if (permission) {
+        return permission;
+    }
 
     /**
-     * Defaut route permission is all permissions to root keys, and
+     * Default route permission is all permissions to root keys, and
      * read permissions to all api keys.
      */
     return {
