@@ -98,6 +98,31 @@ const config: ApiKeyStorage = {
             accessPrivileges.set(route, new BasicApiKeyPermission([], revoked, parent));
         }
         return this;
+    },
+
+    defaultAccess(): ApiKeyPermission {
+        const getRootKeys = () => (this.rootKeys);
+        const getApiKeys = () => (this.apiKeys);
+        return {
+
+            get ALL() {
+                return getRootKeys();
+            },
+
+            get GET() {
+                return getApiKeys();
+            },
+
+            get CREATE() {
+                return [];
+            },
+            get DELETE() {
+                return [];
+            },
+            get UPDATE() {
+                return [];
+            }
+        };
     }
 }
 
@@ -139,26 +164,10 @@ function getRoutePermissions(route: string): ApiKeyPermission {
     }
 
     /**
-     * Default route permission is all permissions to root keys, and
-     * read permissions to all api keys.
+     * Default route permission acquired from config. If config has none, 
+     * uses default permission of nothing.
      */
-    return {
-        get ALL() {
-            return [...(config.rootKeys)]
-        },
-        get GET() {
-            return [...(config.apiKeys)]
-        },
-        get DELETE() {
-            return []
-        },
-        get CREATE() {
-            return [];
-        },
-        get UPDATE() {
-            return [];
-        }
-    }
+    return config.defaultAccess ? config.defaultAccess() : new BasicApiKeyPermission([], []);
 }
 
 /**
