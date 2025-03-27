@@ -3,7 +3,8 @@ import { ArtDao, HermeticArtDao } from "./artDao";
 import Art from "./arts";
 import { GUID } from "./guid";
 import { ArtKey } from "./spells";
-import { EntryFilter, Identified, NotFoundError } from "./utils";
+import { NotFoundError } from "@/lib/exception";
+import { EntryFilter, Identified } from '@/lib/utils';
 
 /**
  * The data source.
