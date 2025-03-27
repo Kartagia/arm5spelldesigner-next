@@ -10,7 +10,8 @@ import Art from "./arts";
 import { ArrayDao } from "./dao";
 import { GUID } from "./guid";
 import { ArtKey, Level, Spell, SpellGuideline } from "./spells";
-import { Identified, NotFoundError } from "./utils";
+import { Identified } from "@/lib/utils";
+import { NotFoundError } from "@/lib/exception";
 import { log } from "console";
 
 /**
@@ -30,11 +31,11 @@ export function getArtKey(art: GUID | ArtKey | Art): ArtKey {
             return value.abbrev;
         },
         (error) => {
-            throw new NotFoundError({ message: "Art not found", cause: error, details: "Referred art does not exist" });
+            throw new NotFoundError<typeof error, string>({ message: "Art not found", cause: error, details: "Referred art does not exist" });
         }
     ));
     if (result === undefined) {
-        throw new NotFoundError({ message: "Art not found", cause: undefined, details: "Referred art does not exist" });
+        throw new NotFoundError<void, string>({ message: "Art not found", details: "Referred art does not exist" });
     } else {
         return result;
     }
