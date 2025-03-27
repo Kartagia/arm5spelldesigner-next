@@ -17,6 +17,44 @@ export interface CheckOptions {
 export class Art {
 
     /**
+     * Get regular expression of an Art Name.
+     * @param groupName The capturing group name. If empty string, the 
+     * group will be an unnamted capturing group. An undefined means
+     * a non-capturing group. Defaults to undefined.
+     * @returns The regular expression matching to a valid art name.
+     */
+    static ArtNameRegex(groupName: undefined|string=undefined) {
+        if (typeof groupName === "string") {
+            if (groupName) {
+                return new RegExp(`^(?<${groupName}>[A-Z][a-z]+)$`)
+            } else {
+                return /^([A-Z][a-z]+)$/
+            }
+        }
+        return /^(?:[A-Z][a-z]+)$/;
+    }
+
+    /**
+     * Get regular expression of an Art abbreviation.
+     * @param groupName The capturing group name. If empty string, the 
+     * group will be an unnamted capturing group. An undefined means
+     * a non-capturing group. Defaults to undefined.
+     * @param maxLength The maximum length of the art abbreviation. Defaults
+     * to 5.
+     * @returns The regular expression matching to a valid art abbreviation.
+     */
+    static ArtAbbrevRegex(groupName: undefined|string=undefined, maxLength: number=5) {
+        if (typeof groupName === "string") {
+            if (groupName) {
+                return new RegExp(`^(?<${groupName}>[A-Z][a-z]{1,${maxLength}})$`)
+            } else {
+                return new RegExp(`^([A-Z][a-z]{1,${maxLength}})$`)
+            }
+        }
+        return new RegExp(`^(?:[A-Z][a-z]{1,${maxLength}})$`)
+    }
+
+    /**
      * The art name.
      */
     private myName;
@@ -90,7 +128,7 @@ export class Art {
      */
     static checkName(value: any, options: CheckOptions = {}): string {
         const {message = "Invalid name"} : CheckOptions = options;
-        if (typeof value === "string" && /^[A-Z][a-z]+$/.test(value)) {
+        if (typeof value === "string" && Art.ArtNameRegex().test(value)) {
             return value;
         } else {
             throw new SyntaxError(message);
@@ -117,7 +155,7 @@ export class Art {
      */
     static checkAbbrev(value: any, options: CheckOptions = {}): string|undefined {
         const {message = "Invalid abbreviation"} : CheckOptions = options;
-        if (value === undefined || (typeof value === "string" && /^[A-Z][a-z]{1,5}$/.test(value)) ) {
+        if (value === undefined || (typeof value === "string" && Art.ArtAbbrevRegex().test(value)) ) {
             return value;
         } else {
             throw new SyntaxError(message);
