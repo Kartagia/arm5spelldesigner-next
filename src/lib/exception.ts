@@ -1,8 +1,3 @@
-/**
- * The error for not found value.
- */
-export const NotFoundError = "Not Found";
-
 
 /**
  * The exception pojo for serialization of an exception.
@@ -57,6 +52,13 @@ export class Exception<CAUSE = undefined, DETAILS = undefined> extends Error {
             ...(this.cause ? { cause: this.cause } : {}),
             ...(this.details ? { details: this.details } : {})
         });
+    }
+}
+
+export class NotFoundError<CAUSE = void, DETAIL = any> extends Exception<CAUSE, DETAIL> {
+
+    constructor({cause, message = "Resource not found", details}:{message: string, cause?: CAUSE, details?: DETAIL}) {
+        super({message, cause, details});
     }
 }
 
