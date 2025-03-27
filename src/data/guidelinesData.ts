@@ -221,7 +221,7 @@ function parseGuidelines(guidelines: string, logger = console): SpellGuideline[]
                             result.results.set(key, []);
                         }
                         result.results.get(key)?.push({
-                            name, level: result.level, form: result.form as ArtKey, technique: result.technique as ArtKey, desccription: description
+                            name, level: result.level, form: result.form as ArtKey, technique: result.technique as ArtKey, description: description
                         });
                     }
                 } catch (error) {
