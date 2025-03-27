@@ -102,6 +102,14 @@ export class BasicApiResponse<TYPE> implements ApiResponse {
 
     }
 
+    /**
+     * Get the value of the response.
+     * @returns Teh value of the response.
+     */
+    getValue():TYPE {
+        return this.value;
+    }
+
     get toJSON() {
         const mediaType = "application/xml";
         const converter = this.mediaTypeConverters.get(mediaType);
