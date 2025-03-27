@@ -1,6 +1,72 @@
 import { TimeoutError } from "./exception";
 
 /**
+ * An identified representing an identified value.
+ */
+export interface Identified<TYPE, ID = string> {
+
+    /**
+     * The identifier.
+     */
+    id: ID;
+
+    /**
+     * The value associated to the identifier.
+     */
+    value: TYPE;
+
+}
+
+/**
+ * Createa an identified value.
+ * @param id The identifier.
+ * @param value The value of the identified.
+ * @returns The identified object.
+ */
+export function createIdentified<TYPE, ID = string>(id: ID, value: TYPE): Identified<TYPE, ID> {
+    return {
+        get id(): ID {
+            return id;
+        },
+        get value(): TYPE {
+            return value;
+        }
+    };
+}
+
+/**
+ * The filter filtering entry values.
+ * @param id The tested entry identifier.
+ * @param value The tested value.
+ * @returns True, if and only if the combination of the id and the entry passes the filter.
+ */
+export type EntryFilter<TYPE, ID = string> = (id: ID, value: TYPE) => boolean;
+
+/**
+ * The entry predicate.
+ * @param entry The tested entry.
+ * @returns True, if and only if the entry passes the predicate.
+ */
+export type EntryPredicate<TYPE, ID = string> = (entry: [ID, TYPE]) => boolean;
+
+/**
+ * The array entry predicate.
+ * @param entry The tested entry.
+ * @param index The index of the iteration.
+ * @param array The array of all entries.
+ * @returns True, if and only if the entry passes the predicate.
+ */
+export type ArrayPredicate<TYPE, ID = string> = (entry: [ID, TYPE], index: number, array: Array<[ID, TYPE]>) => boolean;
+
+/**
+ * The iteration entry predicate.
+ * @param entry The tested entry.
+ * @param index The index of the iteration.
+ * @returns True, if and only if the entry passes the predicate.
+ */
+export type IterPredicate<TYPE, ID = string> = (entry: [ID, TYPE], index: number) => boolean;
+
+/**
  * Covert HTML collection to array of type.
  * @param htmlCollection The HTML collection converted to the array.
  * @param filter The filter function filtering valid elements.
