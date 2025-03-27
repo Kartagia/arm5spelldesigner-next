@@ -46,12 +46,12 @@ export class Art {
     static ArtAbbrevRegex(groupName: undefined|string=undefined, maxLength: number=5) {
         if (typeof groupName === "string") {
             if (groupName) {
-                return new RegExp(`^(?<${groupName}>[A-Z][a-z]{1,${maxLength}})$`)
+                return new RegExp(`^(?<${groupName}>[A-Z][a-z]{1,${maxLength-1}})$`)
             } else {
-                return new RegExp(`^([A-Z][a-z]{1,${maxLength}})$`)
+                return new RegExp(`^([A-Z][a-z]{1,${maxLength-1}})$`)
             }
         }
-        return new RegExp(`^(?:[A-Z][a-z]{1,${maxLength}})$`)
+        return new RegExp(`^(?:[A-Z][a-z]{1,${maxLength-1}})$`)
     }
 
     /**
