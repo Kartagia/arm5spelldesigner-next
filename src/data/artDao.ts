@@ -4,7 +4,8 @@ import { ArtKey } from './spells';
 import { GUID } from './guid';
 import { randomUUID } from 'crypto';
 import { Dao } from './dao';
-import { Identified, createIdentified, NotFoundError } from './utils';
+import { Identified, createIdentified } from '@/lib/utils';
+import { NotFoundError } from '@/lib/exception';
 /**
  * Art storing DAO.
  */

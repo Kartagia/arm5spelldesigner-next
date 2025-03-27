@@ -345,6 +345,23 @@ export class ArtKey {
     }
 
     /**
+<<<<<<< HEAD
+=======
+     * Create an art key from art name.
+     * @param artName The art name.
+     * @param length The length of the art abbreviation.
+     * @returns The art key created from the art name.
+     * @throws {SyntaxError} The art name was not a valid art name. 
+     */
+    static fromArtName(artName: string, length: number = 2): ArtKey {
+        if (!Art.ArtNameRegex().test(artName)) {
+            throw new SyntaxError("Invalid art name");
+        }
+        return new ArtKey(artName.substring(0, length));
+    }
+
+    /**
+>>>>>>> api-guidelines
      * The representation of the art key.
      */
     private rep: string;
