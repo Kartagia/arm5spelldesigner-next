@@ -150,6 +150,12 @@ export class SpellGuidelineKey {
  */
 const guidelines = new ArrayDao<SpellGuideline, SpellGuidelineKey>({ entries: [] });
 
+/**
+ * Parse guidelines from a string source.
+ * @param guidelines The parsed guidelines.
+ * @param logger The optional logger for logged messages.
+ * @returns The array of read spell guidelines. 
+ */
 function parseGuidelines(guidelines: string, logger = console): SpellGuideline[] {
     const lenient = true;
     const results: SpellGuideline[] = [];
@@ -246,7 +252,7 @@ function parseGuidelines(guidelines: string, logger = console): SpellGuideline[]
         }
         return result;
     }, { state: "None" as States, results: new Map<SpellGuidelineKey, SpellGuideline[]>() } as ParseState);
-    return results;
+    return [...endState.results.values()].reduce( (result, guidelines) => ([...result, ...guidelines]), [])
 }
 
 export function loadGuidelines(source: URL, contentType: string = "text/plain") {
