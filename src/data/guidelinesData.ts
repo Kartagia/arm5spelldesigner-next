@@ -4,7 +4,7 @@
  */
 
 import { parse } from "path";
-import { promised } from "../../lib/utils";
+import { promised } from "../lib/utils";
 import { fetchArt, getArt } from "./artData";
 import Art from "./arts";
 import { ArrayDao } from "./dao";

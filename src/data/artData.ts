@@ -1,4 +1,4 @@
-import { promised } from "../../lib/utils";
+import { promised } from "../lib/utils";
 import { ArtDao, HermeticArtDao } from "./artDao";
 import Art from "./arts";
 import { GUID } from "./guid";

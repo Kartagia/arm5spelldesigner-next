@@ -9,7 +9,7 @@ import { equalRDT, getRDTInfo } from "@/data/rdtData";
 import { urlToHttpOptions } from 'url';
 import { Style } from 'util';
 import { redirect } from 'next/dist/server/api-utils';
-import { htmlCollection2Array, promised } from '../../lib/utils';
+import { htmlCollection2Array, promised } from '../lib/utils';
 import { fetchArts, fetchArt } from '@/data/artData';
 
 type ViewMode = "row"|"card"|""
