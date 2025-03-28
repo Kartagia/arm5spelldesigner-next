@@ -5,6 +5,7 @@ import { } from "../../src/data/config_api";
 import { fail } from "assert";
 import { parseGuidelines } from "../../src/data/guidelinesData";
 import { ArtKey, SpellGuideline } from "../../src/data/spells";
+import { error } from "console";
 
 /**
  * Test for guidelines API.
@@ -90,7 +91,7 @@ describe.concurrent("parseGuidelines", function () {
                 } else {
                     expect( () => { result = parseGuidelines(source)}).not.toThrow();
                     expect(result).toBeDefined();
-                    expect(result).eql(expected);
+                    expect(result).toStrictEqual(expected);
                 }
             }
         })
@@ -100,7 +101,7 @@ describe.concurrent("parseGuidelines", function () {
 describe.concurrent("Testing fetching all guidelines", function () {
 
     test("Fetching all guidelines without API key", async () => {
-        const result = fetch("/arm5/guidelines", {
+        const result = fetch("http://localhost/arm5/guidelines", {
             method: "GET",
             headers: {
                 "Accept": "application/json"
@@ -112,14 +113,6 @@ describe.concurrent("Testing fetching all guidelines", function () {
                 throw new Error(result.statusText);
             }
         });
-        result.then(
-            (result) => {
-                fail("The API should have returned error due no API key");
-            },
-            (error) => {
-
-            }
-        )
-        expect(await result).throws();
+        await expect(result).rejects.toStrictEqual(new Error("Not Found"));
     });
 });
