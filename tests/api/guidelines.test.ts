@@ -1,15 +1,16 @@
 
 import { headers } from "next/headers";
-import {AccessMethods, ApiKeyStorage, generateKey} from "../../src/data/api_keys";
-import {} from "../../src/data/config_api";
+import { AccessMethods, ApiKeyStorage, generateKey } from "../../src/data/api_keys";
+import { } from "../../src/data/config_api";
 import { fail } from "assert";
+import { parseGuidelines } from "../../src/data/guidelinesData";
+import { ArtKey, SpellGuideline } from "../../src/data/spells";
 
 /**
  * Test for guidelines API.
  */
-
-describe("Module API key", function() {
-    describe("Create API key", function() {
+describe("Module API key", function () {
+    describe("Create API key", function () {
         const rootKeys: string[] = [];
         const apiKeys: string[] = [];
         const storage: ApiKeyStorage = {
@@ -31,7 +32,7 @@ describe("Module API key", function() {
                 }
                 return this;
             },
-            addAccess(apiKey: string, route: string|undefined="/", ...methods: AccessMethods[]): ApiKeyStorage {
+            addAccess(apiKey: string, route: string | undefined = "/", ...methods: AccessMethods[]): ApiKeyStorage {
                 throw new Error("Function not implemented.");
             },
             revokeAccess(apiKey: string, route: string | undefined, ...methods: AccessMethods[]): ApiKeyStorage {
@@ -46,15 +47,65 @@ describe("Module API key", function() {
     });
 });
 
-describe.concurrent("Testing fetching all guidelines", function() {
+describe.concurrent("parseGuidelines", function () {
+    const sources: [string, (URL | string), SpellGuideline[]|undefined, any?][] = [
+        [
+            "Single Creo Animal guideline",
+            "Animal Spells\nCreo Animal Guidelines\nLevel 1: Give an animal a +1 bonus to Recovery rolls.", 
+            [{name: "Give an animal a +1 bonus to Recovery rolls.", level: 1, form: new ArtKey("Cr"), technique: new ArtKey("An")}]
+        ],
+        [
+            "Empty set",
+            "",
+            [],
+            undefined
+        ]
+    ];
+    sources.forEach(([title, source, expected, error=undefined]) => {
+        it(`Valid source ${title}`, async () => {
+            if (source instanceof URL) {
+                const result = fetch(source, {
+                    headers: {
+                        "Content-Type": "text/plain"
+                    }
+                }).then(
+                    response => {
+                        if (response.ok) {
+                            response.text().then((lines) => (parseGuidelines(lines)))
+                        } else {
+                            throw new Error(`Loading ${source} failed: ${response.status} ${response.statusText}`);
+                        }
+                    }
+                );
+                if (error) {
+                    await expect(result).rejects.toEqual(error);
+                } else {
+                    await expect(result).resolves.toEqual(expected);
+                }
+            } else {
+
+                var result = parseGuidelines(source);
+                if (error) {
+                    expect( () => { result = parseGuidelines(source)}).toThrowError(error);
+                } else {
+                    expect( () => { result = parseGuidelines(source)}).not.toThrow();
+                    expect(result).toBeDefined();
+                    expect(result).eql(expected);
+                }
+            }
+        })
+    })
+})
+
+describe.concurrent("Testing fetching all guidelines", function () {
 
     test("Fetching all guidelines without API key", async () => {
-        const result = fetch("http://localhost/arm5/guidelines", {
+        const result = fetch("/arm5/guidelines", {
             method: "GET",
             headers: {
                 "Accept": "application/json"
             }
-        }).then( (result) => {
+        }).then((result) => {
             if (result.ok) {
                 return result.json();
             } else {

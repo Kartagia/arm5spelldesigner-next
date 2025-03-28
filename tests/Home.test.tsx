@@ -1,6 +1,6 @@
 
 import Home from "../src/app/page";
-import { render, screen } from '@testing-library/react';
+import { render, screen } from "@testing-library/react";
 
 /**
  * Test testing, if home component is rendered.
