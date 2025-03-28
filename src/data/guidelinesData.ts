@@ -150,7 +150,7 @@ export class SpellGuidelineKey {
  */
 const guidelines = new ArrayDao<SpellGuideline, SpellGuidelineKey>({ entries: [] });
 
-function parseGuidelines(guidelines: string, logger = console): SpellGuideline[] {
+export function parseGuidelines(guidelines: string, logger = console): SpellGuideline[] {
     const lenient = true;
     const results: SpellGuideline[] = [];
     const artNameRegex = Art.ArtNameRegex().source;
@@ -160,7 +160,7 @@ function parseGuidelines(guidelines: string, logger = console): SpellGuideline[]
         "\s+Guidelines" +
         "\s*$");
     var wordRegex = /[\w'+-]+/;
-    var sentenceRegex = new RegExp("(?:" + wordRegex.source + "(?:[,]?\s" + wordRegex.source + ")*");
+    var sentenceRegex = new RegExp("(?:" + wordRegex.source + "(?:[,]?\s" + wordRegex.source + ")*" + ")");
     var newLevelRegex = /^\s*Level\s+(\d+|Generic):\s*(\w.*?\.)(?:\s+((?:\([^\)]*\)|)*))?\s*$/;
     var newGuideline = /^\s*(\w.*?\.)\s*$/;
 
