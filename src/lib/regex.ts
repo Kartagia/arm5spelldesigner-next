@@ -79,8 +79,9 @@ export function groupRegex(regex: string | RegExp, groupName: string | undefined
     const { preserveFlags = false, lenient = false, flags = "", stripStartOfLine = false, stripEndOfLine = false } = options;
     const re = (regex instanceof RegExp ? regex : new RegExp(regex));
     const startIndex = (stripStartOfLine && re.source.startsWith("/^") ? 2 : 1);
-    const endIndex = (stripEndOfLine && capturingMatchLength( (new RegExp("(?!=\\\\)(?:\\\\\\\\)*\\$\\/" + re.flags + "$")).exec(re.source)) + 1);
-    const content = re.source.substring(1, re.source.length - re.flags.length - 1);
+    const endIndex : number= re.source.length - (
+        (stripEndOfLine ? capturingMatchLength( (new RegExp("(?!=\\\\)(?:\\\\\\\\)*(\\$\\/" + re.flags + ")$")).exec(re.source)) : 0) + 1);
+    const content = re.source.substring(startIndex, endIndex);
     const resultFlags = createFlags(flags, preserveFlags ? re.flags : "");
     if (groupName) {
         return new RegExp(`(?<${groupName}>${content})`, resultFlags);
