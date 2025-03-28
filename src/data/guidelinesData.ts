@@ -156,7 +156,7 @@ const guidelines = new ArrayDao<SpellGuideline, SpellGuidelineKey>({ entries: []
  * @param logger The optional logger for logged messages.
  * @returns The array of read spell guidelines. 
  */
-function parseGuidelines(guidelines: string, logger = console): SpellGuideline[] {
+export function parseGuidelines(guidelines: string, logger = console): SpellGuideline[] {
     const lenient = true;
     const results: SpellGuideline[] = [];
     const artNameRegex = Art.ArtNameRegex().source;
