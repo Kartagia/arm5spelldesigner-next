@@ -166,7 +166,7 @@ function parseGuidelines(guidelines: string, logger = console): SpellGuideline[]
         "\s+Guidelines" +
         "\s*$");
     var wordRegex = /[\w'+-]+/;
-    var sentenceRegex = new RegExp("(?:" + wordRegex.source + "(?:[,]?\s" + wordRegex.source + ")*");
+    var sentenceRegex = new RegExp("(?:" + wordRegex.source + "(?:[,]?\s" + wordRegex.source + ")*" + ")");
     var newLevelRegex = /^\s*Level\s+(\d+|Generic):\s*(\w.*?\.)(?:\s+((?:\([^\)]*\)|)*))?\s*$/;
     var newGuideline = /^\s*(\w.*?\.)\s*$/;
 
