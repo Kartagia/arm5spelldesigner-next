@@ -38,6 +38,12 @@ export interface RegExpBuilderOptions {
      * @default false
      */
     stripEndOfLine?: boolean;
+
+    /**
+     * Does the operation reult in whole string regex. 
+     * This surrounds the resulting regexp with ^ and $. 
+     */
+    wholeString?:boolean;
 }
 /**
  * Create the Regular Expression flags.
@@ -84,9 +90,9 @@ export function groupRegex(regex: string | RegExp, groupName: string | undefined
     const content = re.source.substring(startIndex, endIndex);
     const resultFlags = createFlags(flags, preserveFlags ? re.flags : "");
     if (groupName) {
-        return new RegExp(`(?<${groupName}>${content})`, resultFlags);
+        return new RegExp(`${options.wholeString ? "^" : ""}(?<${groupName}>${content})${options.wholeString ? "$" : ""}`, resultFlags);
     } else {
-        return new RegExp(`(${groupName === undefined ? "?:" : ""}${content})`, resultFlags);
+        return new RegExp(`${options.wholeString ? "^" : ""}(${groupName === undefined ? "?:" : ""}${content})${options.wholeString ? "$" : ""}`, resultFlags);
     }
 }
 
