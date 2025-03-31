@@ -12,7 +12,7 @@ import { GUID } from "./guid";
 import { ArtKey, Level, Spell, SpellGuideline } from "./spells";
 import { Identified } from "@/lib/utils";
 import { NotFoundError } from "@/lib/exception";
-import { getRegexSourceContent, groupRegex } from "@/lib/regex";
+import { AdvancedRegex, alternateRegex, combine, getRegexSourceContent, groupRegex } from "@/lib/regex";
 
 /**
  * Get the art key of a value.
@@ -156,27 +156,23 @@ const guidelines = new ArrayDao<SpellGuideline, SpellGuidelineKey>({ entries: []
  * @returns The form ehader regex.
  */
 export function formHeaderRegex(groupName : string|undefined = undefined) {
-    const artNameRegex = groupRegex(Art.ArtNameRegex(), groupName, {stripEndOfLine: true, stripStartOfLine: true});
-    const contentRegex = new RegExp(artNameRegex.source.substring(1, artNameRegex.source.length - (1+artNameRegex.flags.length)) + "\s+Spells");
-    return groupRegex(getRegexSourceContent(artNameRegex + "Spells", {stripEndOfLine: true}), groupName, {});
+    const artNameRegex = getRegexSourceContent(Art.ArtNameRegex(), {stripEndOfLine: true, stripStartOfLine: true});
+    return groupRegex(artNameRegex + "Spells", groupName, {wholeString: true});
 }
 
 export function techniqueHeaderRegex(groupName : string|undefined = undefined) {
-    const artNameRegex = Art.ArtNameRegex().source;
-    const contentRegex = new RegExp(artNameRegex.substring(2, artNameRegex.length -2) + "\s+Guidelines");
-    if (groupName) {
-        return new RegExp(`(?<${groupName}>${contentRegex.source})`);
-    } else {
-        return new RegExp(`(${groupName === undefined ? "?:" : ""}${contentRegex.source})`);
-    }
+    const artNameRegex = getRegexSourceContent(Art.ArtNameRegex(), {stripEndOfLine: true, stripStartOfLine: true});
+    return groupRegex(artNameRegex + "Spells", groupName, {wholeString: true});
 }
 
 export function sentenceRegex(groupName : string|undefined = undefined) {
-
+    const wordRegex = new AdvancedRegex(groupRegex("[A-Z\d+-][\w+-]*", undefined));
+    return groupRegex( wordRegex.and( combine({}, ",?\s*?", wordRegex)).and("\."), groupName);
 }
 
 export function newLevelRegex(groupName : string|undefined = undefined) {
-
+    const firstLineRegex = combine({}, groupRegex(alternateRegex(groupRegex("Generic|General", "general"), combine({}, "Level\s+", groupRegex("\\d+", "level"))), undefined), "\:\s*?");
+    return groupRegex(firstLineRegex.and(groupRegex("", "name")), groupName, {wholeString: true});
 }
 
 
