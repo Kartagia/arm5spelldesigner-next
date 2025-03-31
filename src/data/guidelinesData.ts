@@ -4,7 +4,7 @@
  */
 
 import { parse } from "path";
-import { promised } from "../lib/utils";
+import { promised, TruePredicate } from "../lib/utils";
 import { fetchArt, getArt } from "./artData";
 import Art from "./arts";
 import { ArrayDao } from "./dao";
@@ -12,7 +12,7 @@ import { GUID } from "./guid";
 import { ArtKey, Level, Spell, SpellGuideline } from "./spells";
 import { Identified } from "@/lib/utils";
 import { NotFoundError } from "@/lib/exception";
-import { log } from "console";
+import { AdvancedRegex, alternateRegex, combine, getRegexSourceContent, groupRegex } from "@/lib/regex";
 
 /**
  * Get the art key of a value.
@@ -151,6 +151,32 @@ export class SpellGuidelineKey {
 const guidelines = new ArrayDao<SpellGuideline, SpellGuidelineKey>({ entries: [] });
 
 /**
+ * Get teh from header regex for parsing the guidelines.
+ * @param groupName The group name.
+ * @returns The form ehader regex.
+ */
+export function formHeaderRegex(groupName : string|undefined = undefined) {
+    const artNameRegex = getRegexSourceContent(Art.ArtNameRegex(), {stripEndOfLine: true, stripStartOfLine: true});
+    return groupRegex(artNameRegex + "Spells", groupName, {wholeString: true});
+}
+
+export function techniqueHeaderRegex(groupName : string|undefined = undefined) {
+    const artNameRegex = getRegexSourceContent(Art.ArtNameRegex(), {stripEndOfLine: true, stripStartOfLine: true});
+    return groupRegex(artNameRegex + "Spells", groupName, {wholeString: true});
+}
+
+export function sentenceRegex(groupName : string|undefined = undefined) {
+    const wordRegex = new AdvancedRegex(groupRegex("[A-Z\d+-][\w+-]*", undefined));
+    return groupRegex( wordRegex.and( combine({}, ",?\s*?", wordRegex)).and("\."), groupName);
+}
+
+export function newLevelRegex(groupName : string|undefined = undefined) {
+    const firstLineRegex = combine({}, groupRegex(alternateRegex(groupRegex("Generic|General", "general"), combine({}, "Level\s+", groupRegex("\\d+", "level"))), undefined), "\:\s*?");
+    return groupRegex(firstLineRegex.and(groupRegex("", "name")), groupName, {wholeString: true});
+}
+
+
+/**
  * Parse guidelines from a string source.
  * @param guidelines The parsed guidelines.
  * @param logger The optional logger for logged messages.
@@ -160,11 +186,11 @@ export function parseGuidelines(guidelines: string, logger = console): SpellGuid
     const lenient = true;
     const results: SpellGuideline[] = [];
     const artNameRegex = Art.ArtNameRegex().source;
-    var formHeaderRegex = new RegExp("^\s*" + artNameRegex.substring(2, artNameRegex.length - 3) + "\s+Spells\s*$");
+    var formHeaderRegex = new RegExp("^\s*" + artNameRegex.substring(2, artNameRegex.length - 3) + "\s+Spells\s*\n?$");
     var techniqueHeaderRegex = new RegExp("^\s*" + artNameRegex.substring(2, artNameRegex.length - 3) + "\s+" +
         artNameRegex.substring(2, artNameRegex.length - 3) +
         "\s+Guidelines" +
-        "\s*$");
+        "\s*\n?$");
     var wordRegex = /[\w'+-]+/;
     var sentenceRegex = new RegExp("(?:" + wordRegex.source + "(?:[,]?\s" + wordRegex.source + ")*" + ")");
     var newLevelRegex = /^\s*Level\s+(\d+|Generic):\s*(\w.*?\.)(?:\s+((?:\([^\)]*\)|)*))?\s*$/;
