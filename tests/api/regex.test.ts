@@ -3,13 +3,44 @@ import { AdvancedRegex, groupRegex, getRegexSourceContent } from "@/lib/regex";
 import { TestsNotFoundError } from "vitest/node.js";
 
 describe("method getRegexSourceContent", () => {
-    [ {tested: /^$/, expected: "^$"}, { tested: /^Foobar(?:\w+)/mu, expected: "^Foobar(?:\\w+)"}].forEach(
+    [ 
+        {tested: /^$/, expected: "^$"},
+        { tested: /^Foobar(?:\w+)/mu, expected: "^Foobar(?:\\w+)"}, 
+        {tested: /^(\d+)\s+(?:\w+)$/, expected: "^(\\d+)\\s+(?:\\w+)$"},
+        {tested: /Foobarbar/, expected: "Foobarbar"}
+    ].forEach(
         ( testCase, index ) => {
             it(`Test case #${index}: ${testCase.tested.source}`, () => {
                 expect(getRegexSourceContent(testCase.tested)).toEqual(testCase.expected);
             })
         }
-    )
+    );
+    [ 
+        {tested: /^$/, expected: "$"}, { tested: /^Foobar(?:\w+)/mu, expected: "Foobar(?:\\w+)"}, 
+        {tested: /^(\d+)\s+(?:\w+)$/, expected: "(\\d+)\\s+(?:\\w+)$"},
+        {tested: /Foobarbar/, expected: "Foobarbar"}
+    ].forEach(
+        ( testCase, index ) => {
+            it(`Test case #${index}: ${testCase.tested.source} strip start of line`, () => {
+                expect(getRegexSourceContent(testCase.tested, {stripStartOfLine: true})).toEqual(testCase.expected);
+            })
+        }
+    );
+    [ 
+        {tested: /^$/, expected: "^"},
+        { tested: /^Foobar(?:\w+)/mu, expected: "^Foobar(?:\\w+)"}, 
+        {tested: /^(\d+)\s+(?:\w+)$/, expected: "^(\\d+)\\s+(?:\\w+)"},
+        {tested: /Foobarbar/, expected: "Foobarbar"},
+        {tested: /Foobarbar\\\\$/, expected: "Foobarbar\\\\\\\\"},
+        {tested: /Foobarbar\\\\\$/, expected: "Foobarbar\\\\\\\\\\$"}
+    ].forEach(
+        ( testCase, index ) => {
+            it(`Test case #${index}: ${testCase.tested.source}`, () => {
+                expect(getRegexSourceContent(testCase.tested, {stripEndOfLine: true})).toEqual(testCase.expected);
+            })
+        }
+    );
+
 });
 
 describe("method groupRegex", () => {
