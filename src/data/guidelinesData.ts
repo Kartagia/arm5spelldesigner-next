@@ -4,7 +4,7 @@
  */
 
 import { parse } from "path";
-import { promised } from "../lib/utils";
+import { promised, TruePredicate } from "../lib/utils";
 import { fetchArt, getArt } from "./artData";
 import Art from "./arts";
 import { ArrayDao } from "./dao";
@@ -12,7 +12,7 @@ import { GUID } from "./guid";
 import { ArtKey, Level, Spell, SpellGuideline } from "./spells";
 import { Identified } from "@/lib/utils";
 import { NotFoundError } from "@/lib/exception";
-import { log } from "console";
+import { getRegexSourceContent, groupRegex } from "@/lib/regex";
 
 /**
  * Get the art key of a value.
@@ -150,15 +150,45 @@ export class SpellGuidelineKey {
  */
 const guidelines = new ArrayDao<SpellGuideline, SpellGuidelineKey>({ entries: [] });
 
+/**
+ * Get teh from header regex for parsing the guidelines.
+ * @param groupName The group name.
+ * @returns The form ehader regex.
+ */
+export function formHeaderRegex(groupName : string|undefined = undefined) {
+    const artNameRegex = groupRegex(Art.ArtNameRegex(), groupName, {stripEndOfLine: true, stripStartOfLine: true});
+    const contentRegex = new RegExp(artNameRegex.source.substring(1, artNameRegex.source.length - (1+artNameRegex.flags.length)) + "\s+Spells");
+    return groupRegex(getRegexSourceContent(artNameRegex + "Spells", {stripEndOfLine: true}), groupName, {});
+}
+
+export function techniqueHeaderRegex(groupName : string|undefined = undefined) {
+    const artNameRegex = Art.ArtNameRegex().source;
+    const contentRegex = new RegExp(artNameRegex.substring(2, artNameRegex.length -2) + "\s+Guidelines");
+    if (groupName) {
+        return new RegExp(`(?<${groupName}>${contentRegex.source})`);
+    } else {
+        return new RegExp(`(${groupName === undefined ? "?:" : ""}${contentRegex.source})`);
+    }
+}
+
+export function sentenceRegex(groupName : string|undefined = undefined) {
+
+}
+
+export function newLevelRegex(groupName : string|undefined = undefined) {
+
+}
+
+
 export function parseGuidelines(guidelines: string, logger = console): SpellGuideline[] {
     const lenient = true;
     const results: SpellGuideline[] = [];
     const artNameRegex = Art.ArtNameRegex().source;
-    var formHeaderRegex = new RegExp("^\s*" + artNameRegex.substring(2, artNameRegex.length - 3) + "\s+Spells\s*$");
+    var formHeaderRegex = new RegExp("^\s*" + artNameRegex.substring(2, artNameRegex.length - 3) + "\s+Spells\s*\n?$");
     var techniqueHeaderRegex = new RegExp("^\s*" + artNameRegex.substring(2, artNameRegex.length - 3) + "\s+" +
         artNameRegex.substring(2, artNameRegex.length - 3) +
         "\s+Guidelines" +
-        "\s*$");
+        "\s*\n?$");
     var wordRegex = /[\w'+-]+/;
     var sentenceRegex = new RegExp("(?:" + wordRegex.source + "(?:[,]?\s" + wordRegex.source + ")*" + ")");
     var newLevelRegex = /^\s*Level\s+(\d+|Generic):\s*(\w.*?\.)(?:\s+((?:\([^\)]*\)|)*))?\s*$/;
