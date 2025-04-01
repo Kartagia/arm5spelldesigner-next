@@ -138,12 +138,9 @@ describe("method groupRegex", () => {
         }
     );
 
-    options = { preserveFlags: true };
     [{ tested: /^$/, expected: "/(?:^$)/" }, { tested: /^Foobar(?:\w+)/mu, expected: "/(?:^Foobar(?:\\w+))/mu" }].forEach(
         (testCase, index) => {
-            it(`Test case #${index}: preserving the flags non-capturing source ${testCase.tested.source}`, () => {
-                expect(groupRegex(testCase.tested.source, undefined, options).toString()).toEqual(testCase.expected);
-            })
+            options = { preserveFlags: true };
             it(`Test case #${index}: non-capturing ${testCase.tested.source}`, () => {
                 expect(groupRegex(testCase.tested, undefined, options).toString()).toEqual(testCase.expected);
             })
