@@ -497,7 +497,7 @@ export function groupRegex(regex: string | RegExp, groupName: string | undefined
     const content = getRegexSourceContent(regex, { ...options, wholeString: false });
     const { preserveFlags = false, lenient = false, flags = "" } = options;
     const re = new RegExp(content, flags);
-    const resultFlags = createFlags(flags, preserveFlags ? re.flags : "");
+    const resultFlags = createFlags(flags, preserveFlags && regex instanceof RegExp ? regex.flags : "");
     if (groupName) {
         return new RegExp(`${options.wholeString ? "^" : ""}(?<${groupName}>${content})${options.wholeString ? "$" : ""}`, resultFlags);
     } else {
