@@ -1,8 +1,38 @@
 
-import { AdvancedRegex, groupRegex, getRegexSourceContent } from "@/lib/regex";
+import { AdvancedRegex, groupRegex, getRegexSourceContent, RegExpBuilderOptions } from "@/lib/regex";
 import { TestsNotFoundError } from "vitest/node.js";
 
+function optionsToString( options: RegExpBuilderOptions|undefined ): string {
+    const segments: string[] = [];
+    if (options) {
+        if (options.lenient) {
+            segments.push("lenient");
+        }
+        if (options.flags) {
+            segments.push(`Flags=${options.flags}`);
+        }
+        if (options.preserveFlags) {
+            segments.push("preserveFlags");
+        }
+        if (options.stripEndOfLine) {
+            segments.push("stripEndOfLine");
+        }
+        if (options.stripStartOfLine) {
+            segments.push("stripStartOfLine");
+        }
+        if (options.wholeString) {
+            segments.push("wholeString");
+        }
+    } else if (options === undefined) {
+        segments.push("Default options");
+    }
+    return segments.join(",");
+}
+
+
 describe("method getRegexSourceContent", () => {
+    var options : RegExpBuilderOptions | undefined = undefined;
+
     [ 
         {tested: /^$/, expected: "^$"},
         { tested: /^Foobar(?:\w+)/mu, expected: "^Foobar(?:\\w+)"}, 
@@ -10,22 +40,29 @@ describe("method getRegexSourceContent", () => {
         {tested: /Foobarbar/, expected: "Foobarbar"}
     ].forEach(
         ( testCase, index ) => {
-            it(`Test case #${index}: ${testCase.tested.source}`, () => {
+            const options = undefined;
+            it(`Test case #${index}: ${optionsToString(options)} ${testCase.tested}`, () => {
                 expect(getRegexSourceContent(testCase.tested)).toEqual(testCase.expected);
             })
         }
     );
+    options = { stripStartOfLine: true };
     [ 
         {tested: /^$/, expected: "$"}, { tested: /^Foobar(?:\w+)/mu, expected: "Foobar(?:\\w+)"}, 
         {tested: /^(\d+)\s+(?:\w+)$/, expected: "(\\d+)\\s+(?:\\w+)$"},
         {tested: /Foobarbar/, expected: "Foobarbar"}
     ].forEach(
         ( testCase, index ) => {
-            it(`Test case #${index}: ${testCase.tested.source} strip start of line`, () => {
-                expect(getRegexSourceContent(testCase.tested, {stripStartOfLine: true})).toEqual(testCase.expected);
+            const options = { stripStartOfLine: true };
+            it(`Test case #${index}: ${optionsToString(options)} ${testCase.tested}`, () => {
+                expect(getRegexSourceContent(testCase.tested, options)).toEqual(testCase.expected);
+            })
+            it(`Test case #${index} source: ${optionsToString(options)} ${testCase.tested.source}`, () => {
+                expect(getRegexSourceContent(testCase.tested.source, options)).toEqual(testCase.expected);
             })
         }
     );
+    options = {stripEndOfLine: true };
     [ 
         {tested: /^$/, expected: "^"},
         { tested: /^Foobar(?:\w+)/mu, expected: "^Foobar(?:\\w+)"}, 
@@ -35,22 +72,60 @@ describe("method getRegexSourceContent", () => {
         {tested: /Foobarbar\\\\\$/, expected: "Foobarbar\\\\\\\\\\$"}
     ].forEach(
         ( testCase, index ) => {
-            it(`Test case #${index}: ${testCase.tested.source}`, () => {
-                expect(getRegexSourceContent(testCase.tested, {stripEndOfLine: true})).toEqual(testCase.expected);
+            it(`Test case #${index}: ${optionsToString(options)} ${testCase.tested}`, () => {
+                expect(getRegexSourceContent(testCase.tested, options)).toEqual(testCase.expected);
+            })
+            it(`Test case #${index} source: ${optionsToString(options)} ${testCase.tested.source}`, () => {
+                expect(getRegexSourceContent(testCase.tested.source, options)).toEqual(testCase.expected);
             })
         }
     );
 
+    [ 
+        {tested: /^$/, expected: "^"},
+        { tested: /^Foobar(?:\w+)/mu, expected: "^Foobar(?:\\w+)"}, 
+        {tested: /^(\d+)\s+(?:\w+)$/, expected: "^(\\d+)\\s+(?:\\w+)"},
+        {tested: /Foobarbar/, expected: "Foobarbar"},
+        {tested: /Foobarbar\\\\$/, expected: "Foobarbar\\\\\\\\"},
+        {tested: /Foobarbar\\\\\$/, expected: "Foobarbar\\\\\\\\\\$"}
+    ].forEach(
+        ( testCase, index ) => {
+            const options = {stripEndOfLine: true, preserveFlags: true };
+            it(`Test case #${index}: ${optionsToString(options)} ${testCase.tested}`, () => {
+                expect(getRegexSourceContent(testCase.tested, options)).toEqual(testCase.expected);
+            })
+            it(`Test case #${index} source: ${optionsToString(options)} ${testCase.tested.source}`, () => {
+                expect(getRegexSourceContent(testCase.tested.source, options)).toEqual(testCase.expected);
+            })
+        }
+    );
 });
 
 describe("method groupRegex", () => {
-    [ {tested: /^$/, expected: "/(?:^$)/"}, { tested: /^Foobar(?:\w+)/mu, expected: "/(?:^Foobar(?:\\w+))/mu"}].forEach(
+    var options : RegExpBuilderOptions | undefined = undefined;
+    [ {tested: /^$/, expected: "/(?:^$)/"}, { tested: /^Foobar(?:\w+)/mu, expected: "/(?:^Foobar(?:\\w+))/"}].forEach(
         ( testCase, index ) => {
+            it(`Test case #${index}: non-capturing source ${testCase.tested.source}`, () => {
+                expect(groupRegex(testCase.tested.source, undefined).toString()).toEqual(testCase.expected);
+            })
             it(`Test case #${index}: non-capturing ${testCase.tested.source}`, () => {
-                expect(groupRegex(testCase.tested.toString(), undefined)).toEqual(testCase.expected);
+                expect(groupRegex(testCase.tested, undefined).toString()).toEqual(testCase.expected);
             })
         }
-    )
+    );
+    
+    options = { preserveFlags: true };
+    [ {tested: /^$/, expected: "/(?:^$)/"}, { tested: /^Foobar(?:\w+)/mu, expected: "/(?:^Foobar(?:\\w+))/mu"}].forEach(
+        ( testCase, index ) => {
+            it(`Test case #${index}: preserving the flags non-capturing source ${testCase.tested.source}`, () => {
+                expect(groupRegex(testCase.tested.source, undefined, options).toString()).toEqual(testCase.expected);
+            })
+            it(`Test case #${index}: non-capturing ${testCase.tested.source}`, () => {
+                expect(groupRegex(testCase.tested, undefined, options).toString()).toEqual(testCase.expected);
+            })
+        }
+    );
+
 });
 
 
