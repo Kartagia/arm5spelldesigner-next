@@ -167,10 +167,12 @@ const guidelines = new ArrayDao<SpellGuideline, SpellGuidelineKey>({
                 name: "Create a fire dealing (Spell Level + 2 Magnitudes) damage.", level: "Generic" as Level,
                 form: new ArtKey("Ig"), technique: new ArtKey("Cr")
             },
-            {name: "Control a liquid in extremely gentle way.", level: 1, 
-                form: new ArtKey("Aq"), technique: new ArtKey("Re")}
-        
-        ].map(guideline => (createIdentified(SpellGuidelineKey.fromGuideline(guideline), {guid: GUID.createV4(), ...guideline})))
+            {
+                name: "Control a liquid in extremely gentle way.", level: 1,
+                form: new ArtKey("Aq"), technique: new ArtKey("Re")
+            }
+
+        ].map(guideline => (createIdentified(SpellGuidelineKey.fromGuideline(guideline), { guid: GUID.createV4(), ...guideline })))
     ]
 });
 
@@ -193,9 +195,44 @@ export function loadGuidelines(source: URL, contentType: string = "text/plain") 
                                             return parseGuidelines(value);
                                         case "object":
                                             if (Array.isArray(value)) {
-
+                                                // An array of guidelines.
+                                                const loaded: Identified<SpellGuideline, SpellGuidelineKey>[] = value.reduce(
+                                                    (result, guideline, index) => {
+                                                        try {
+                                                            const key = SpellGuidelineKey.fromGuideline(guideline);
+                                                            result.push(createIdentified(key, guideline as SpellGuideline));
+                                                            return result;
+                                                        } catch (error) {
+                                                            const message = "Invalid guideline source";
+                                                            console.error(`URL:${source.toString()} at index ${index}: ${message}`)
+                                                            throw new SyntaxError(message, {cause: error})
+                                                        }
+                                                    }, []);
+                                                loaded.forEach( (entry) => {
+                                                    guidelines.update(entry.id, entry.value).then(
+                                                        (ok) => {
+                                                            return ok;
+                                                        }, 
+                                                        (error) => {
+                                                            return guidelines.create(entry.value)
+                                                        }
+                                                    )
+                                                })
                                             } else if (value !== null) {
-                                                
+                                                // A single guideline.
+                                                const entry = value as SpellGuideline;
+                                                const key = SpellGuidelineKey.fromGuideline(entry);
+                                                guidelines.update(key, entry).then(
+                                                    (ok) => {
+                                                        return ok;
+                                                    }, 
+                                                    (error) => {
+                                                        return guidelines.create(entry).then(
+                                                            id => (id !== undefined)
+                                                        )
+                                                    }
+                                                )
+                                            
                                             }
                                         default:
                                             throw new SyntaxError("Invalid return type");
