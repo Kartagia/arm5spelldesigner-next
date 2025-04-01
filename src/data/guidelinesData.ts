@@ -3,7 +3,6 @@
  * Guidelines data source.
  */
 
-import { parse } from "path";
 import { createIdentified, promised, TruePredicate } from "../lib/utils";
 import { fetchArt, getArt } from "./artData";
 import Art from "./arts";
