@@ -496,7 +496,7 @@ export class RegexpGroup extends RegExp {
 export function groupRegex(regex: string | RegExp, groupName: string | undefined, options: RegExpBuilderOptions = {}): RegExp {
     const content = getRegexSourceContent(regex, { ...options, wholeString: false });
     const { preserveFlags = false, lenient = false, flags = "" } = options;
-    const re = (regex instanceof RegExp ? regex : new RegExp(regex));
+    const re = new RegExp(content, flags);
     const resultFlags = createFlags(flags, preserveFlags ? re.flags : "");
     if (groupName) {
         return new RegExp(`${options.wholeString ? "^" : ""}(?<${groupName}>${content})${options.wholeString ? "$" : ""}`, resultFlags);
