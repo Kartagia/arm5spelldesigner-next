@@ -43,8 +43,21 @@ describe("Module API key", function () {
         it.concurrent("Test generate key", async () => {
             const key = generateKey(storage);
             expect(key).a("string", "Generated key is not a string!");
-            expect(key).match(/^[\da-z]+$/, "The generated guid was not a proper string.")
-        })
+            expect(key).match(/^[\da-z]+$/, "The generated guid was not a proper string.");
+        });
+        it.concurrent("Test add a new key", async () => {
+            const key = generateKey(storage);
+            storage.addApiKey(key);
+            expect(storage.apiKeys).include(key);
+            expect(() => {storage.addApiKey(key)}).throw();
+        });
+        it.concurrent("Test add a new root key", async () => {
+            const key = generateKey(storage);
+            storage.addRootApiKey(key);
+            expect(storage.apiKeys).include(key);
+            expect(storage.rootKeys).include(key);
+            expect(() => {storage.addApiKey(key)}).throw();
+        });
     });
 });
 
