@@ -293,7 +293,7 @@ export function getRegexSourceContent(regex: string | RegExp, options: RegExpBui
     const re = (regex instanceof RegExp ? regex : new RegExp(regex));
     const startIndex = (stripStartOfLine && re.source.startsWith("^") ? 1 : 0);
     const endIndex: number = re.source.length - (
-        (stripEndOfLine ? capturingMatchLength((new RegExp("(?!=\\\\)(?:\\\\\\\\)*(\\$)$")).exec(re.source)) : 0));
+        (stripEndOfLine ? capturingMatchLength((new RegExp("(?<!\\\\)(?:\\\\\\\\)*(\\$)$")).exec(re.source)) : 0));
     const content = re.source.substring(startIndex, endIndex);
     return `${options.wholeString ? "^" : ""}${content}${options.wholeString ? "$" : ""}`;
     ;
