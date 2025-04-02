@@ -1,8 +1,9 @@
-import { Spell, SpellGuideline } from "@/data/spells";
+import { ArtKey, Spell, SpellGuideline } from "@/data/spells";
 import { NextRequest, NextResponse } from "next/server";
 import { EntryFilter, Identified, createIdentified, Predicate } from "@/data/utils";
 import { AccessMethods } from "@/data/api_keys";
 import { validApiKey, validApiReadKey, validApiRouteKey } from "@/data/config_api"
+import { GUID } from "@/data/guid";
 /**
  * Test authentication satatus of the request.
  * @param request The tested request.
@@ -11,10 +12,13 @@ import { validApiKey, validApiReadKey, validApiRouteKey } from "@/data/config_ap
  */
 export function isAuthenticated(request: NextRequest): boolean {
     const key = request.headers?.get("API-key");
+    console.log(`Validating API key:${key}`);
     return key !== null && validApiKey(key);
 }
 
-var guidelines: Map<string, SpellGuideline> = new Map<string, SpellGuideline>();
+var guidelines: Map<string, SpellGuideline> = new Map<string, SpellGuideline>(
+    [[GUID.createV4().toString(), {name: "Give an animal +1 to Recovery rolls", form: new ArtKey("An"), technique: new ArtKey("Cr"), level: 1}]]
+);
 
 interface SpellGuidelineOptions {
     filter?: EntryFilter<SpellGuideline>;
