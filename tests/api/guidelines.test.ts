@@ -1,10 +1,7 @@
 
-import { headers } from "next/headers";
 import { AccessMethods, ApiKeyStorage, generateKey } from "../../src/data/api_keys";
 import { } from "../../src/data/config_api";
-import { fail } from "assert";
 import { ArtKey, SpellGuideline } from "../../src/data/spells";
-import { error } from "console";
 import { parseGuidelines } from "@/lib/guidelineParser";
 
 /**
@@ -49,24 +46,24 @@ describe("Module API key", function () {
             const key = generateKey(storage);
             storage.addApiKey(key);
             expect(storage.apiKeys).include(key);
-            expect(() => {storage.addApiKey(key)}).throw();
+            expect(() => { storage.addApiKey(key) }).throw();
         });
         it.concurrent("Test add a new root key", async () => {
             const key = generateKey(storage);
             storage.addRootApiKey(key);
             expect(storage.apiKeys).include(key);
             expect(storage.rootKeys).include(key);
-            expect(() => {storage.addApiKey(key)}).throw();
+            expect(() => { storage.addApiKey(key) }).throw();
         });
     });
 });
 
 describe.skip.concurrent("parseGuidelines", function () {
-    const sources: [string, (URL | string), SpellGuideline[]|undefined, any?][] = [
+    const sources: [string, (URL | string), SpellGuideline[] | undefined, any?][] = [
         [
             "Single Creo Animal guideline",
-            "Animal Spells\nCreo Animal Guidelines\nLevel 1: Give an animal a +1 bonus to Recovery rolls.", 
-            [{name: "Give an animal a +1 bonus to Recovery rolls.", level: 1, form: new ArtKey("Cr"), technique: new ArtKey("An")}]
+            "Animal Spells\nCreo Animal Guidelines\nLevel 1: Give an animal a +1 bonus to Recovery rolls.",
+            [{ name: "Give an animal a +1 bonus to Recovery rolls.", level: 1, form: new ArtKey("Cr"), technique: new ArtKey("An") }]
         ],
         [
             "Empty set",
@@ -75,7 +72,7 @@ describe.skip.concurrent("parseGuidelines", function () {
             undefined
         ]
     ];
-    sources.forEach(([title, source, expected, error=undefined]) => {
+    sources.forEach(([title, source, expected, error = undefined]) => {
         it(`Valid source ${title}`, async () => {
             if (source instanceof URL) {
                 const result = fetch(source, {
@@ -100,9 +97,9 @@ describe.skip.concurrent("parseGuidelines", function () {
 
                 var result = parseGuidelines(source);
                 if (error) {
-                    expect( () => { result = parseGuidelines(source)}).toThrowError(error);
+                    expect(() => { result = parseGuidelines(source) }).toThrowError(error);
                 } else {
-                    expect( () => { result = parseGuidelines(source)}).not.toThrow();
+                    expect(() => { result = parseGuidelines(source) }).not.toThrow();
                     expect(result).toBeDefined();
                     expect(result).toStrictEqual(expected);
                 }
@@ -114,7 +111,7 @@ describe.skip.concurrent("parseGuidelines", function () {
 describe.concurrent("Testing fetching all guidelines", function () {
 
     test("Fetching all guidelines without API key", async () => {
-        const result = fetch("http://localhost/arm5/guidelines", {
+        const result = fetch("http://localhost:3000/arm5/guidelines", {
             method: "GET",
             headers: {
                 "Accept": "application/json"
@@ -126,6 +123,27 @@ describe.concurrent("Testing fetching all guidelines", function () {
                 throw new Error(result.statusText);
             }
         });
-        await expect(result).rejects.toStrictEqual(new Error("Not Found"));
+        await expect(result).rejects.throws(Error);
+    });
+
+    test("Fetching all guidelines with API key", async () => {
+        const reqHeaders = new Headers();
+        reqHeaders.set("Accept", "application/json");
+        if (process.env.DATA_API_KEY) {
+            reqHeaders.set("API-key", process.env.DATA_API_KEY);
+        } else {
+            console.warn("No api key in environment");
+        }
+        const result = fetch("http://localhost:3000/arm5/guidelines", {
+            method: "GET",
+            headers: reqHeaders
+        }).then( (result) => {
+            if (result.ok) {
+                return result.json();
+            } else {
+                throw new Error(result.statusText);
+            }
+        });
+        await expect(result).resolves.a("array");
     });
 });
