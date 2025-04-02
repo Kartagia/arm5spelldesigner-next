@@ -1,0 +1,17 @@
+GET http://localhost:3000/arm5/guidelines
+Accept: application/json
+API-key: {{$dotenv DATA_API_KEY}}
+
+###
+
+POST http://localhost:3000/arm5/guidelines
+Accept: application/json
+Content-Type: application/json
+Set-Cookie: API-key={{$dotenv DATA_API_KEY}}
+
+{
+    "name": "Create a fire doing Spell Level + 2 magnitudes damage",
+    "level": "Generic",
+    "form": "Cr",
+    "technique": "Ig"
+}
