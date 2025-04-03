@@ -1,8 +1,13 @@
 
+import { loadEnvConfig } from "@next/env";
 import { AccessMethods, ApiKeyStorage, generateKey } from "../../src/data/api_keys";
 import { } from "../../src/data/config_api";
 import { ArtKey, SpellGuideline } from "../../src/data/spells";
 import { parseGuidelines } from "@/lib/guidelineParser";
+import nextConfig from "../../next.config";
+
+const projectDir = process.cwd();
+loadEnvConfig(projectDir);
 
 /**
  * Test for guidelines API.
