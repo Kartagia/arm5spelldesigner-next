@@ -1,4 +1,5 @@
-import { ArtKey, Level, Spell, SpellGuideline } from "@/data/spells";
+import { ArtKey, Spell, SpellGuideline } from "@/data/spells";
+import { checkLevel } from "@/lib/level";
 import { NextRequest, NextResponse } from "next/server";
 import { EntryFilter, Identified, createIdentified, Predicate } from "@/data/utils";
 import { Check } from "../../../../lib/utils";
@@ -213,28 +214,6 @@ class SpellGuidelineFilter {
     }
 }
 
-
-/**
- * @type {Check<Level>}
- */
-export function checkLevel(value: any, options: CheckOptions<Level> = {}): Level {
-    const { message = "Invalid level", minValue = 1, maxValue = 255 } = options;
-    switch (typeof value) {
-        case "number":
-            if (Number.isSafeInteger(value) && (typeof minValue !== "number" || minValue <= value)
-                && (typeof maxValue !== "number" || value <= maxValue)) {
-                return value;
-            } else {
-                throw new SyntaxError(message, { cause: "Invalid numeric value" });
-            }
-        case "string":
-            if (value === "Generic" || value === "General") {
-                return "Generic";
-            }
-        default:
-            throw new SyntaxError(message);
-    }
-}
 
 function checkTitle(value: any, options: CheckOptions<string> = {}): string {
     const { message = "Invalid title" } = options;
