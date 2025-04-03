@@ -6,6 +6,7 @@
 import { getTargetTriple } from "next/dist/build/swc/generated-native";
 import { GUID } from "./guid";
 import Art from "./arts";
+import { Level } from "@/lib/level";
 
 export interface SpellGuideline {
     /**
@@ -408,6 +409,4 @@ type RDTInfo = {
 };
 
 export type RDTValue = (RDTInfo | RDT);
-
-export type Level = number | "Generic";
 

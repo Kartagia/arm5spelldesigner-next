@@ -6,7 +6,8 @@
  */
 import Art from "@/data/arts";
 import { SpellGuidelineKey } from "@/data/guidelinesData";
-import { SpellGuideline, ArtKey, Level } from "@/data/spells";
+import { SpellGuideline, ArtKey } from "@/data/spells";
+import { Level } from "./level";
 import { getRegexSourceContent, groupRegex, AdvancedRegex, combine, alternateRegex } from "./regex";
 
 

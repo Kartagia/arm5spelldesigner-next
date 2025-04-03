@@ -3,7 +3,8 @@
  * The spell guidelines response.
  */
 
-import { ArtKey, Level, Spell, SpellGuideline } from "@/data/spells";
+import { ArtKey, Spell, SpellGuideline } from "@/data/spells";
+import { Level } from "@/lib/level";
 import { BasicApiResponse } from "./ApiResponse";
 import { GUID } from "@/data/guid";
 import { CheckOptions } from "./ErrorResponse";
