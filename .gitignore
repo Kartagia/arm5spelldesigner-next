@@ -47,3 +47,6 @@ sitemap.xml
 sitemap-*.xml
 
 package-lock.json
+
+# IDX configuration
+.idx/dev.nix
