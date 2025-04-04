@@ -5,10 +5,29 @@ import Link from 'next/link';
 import { useId } from 'react';
 import { useFormState } from 'react-dom';
 
+/**
+ * The porperties of the login component.
+ */
+export interface LoginProperties {
+    /**
+     * The mode of the authentication.
+     */
+    mode: "signup"|"login";
 
-export default function LoginPage({ mode = "signup" }: { mode: string }) {
+    /**
+     * The origin route where the successful sigin or login routes the user.
+     */
+    origin? : string;
+}
+
+/**
+ * 
+ * @param param0 
+ * @returns 
+ */
+export default function LoginPage({ mode = "signup", origin="/"}: LoginProperties) {
     const action = (mode === "signup" ? signup : login);
-    const [formState, formAction] = useFormState( action, {});
+    const [formState, formAction] = useFormState( action, { errors: {}, origin });
     const emailField = EmailField;
     const pwdField = PasswordField;
     const id = useId();
@@ -16,7 +35,7 @@ export default function LoginPage({ mode = "signup" }: { mode: string }) {
     const pwdId = `${id}.pwd`;
     const caption = (mode === "signup" ? "Create account" : "Log in")
     const title = (mode === "signup" ? "Create a new account" : "Log in with an existing account");
-    const errors = formState ?? {};
+    const errors = formState?.errors ?? {};
 
     return (<form action={formAction} id={id}>
         <div>
