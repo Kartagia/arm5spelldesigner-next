@@ -1,4 +1,34 @@
 
+import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
+import { Lucia, TimeSpan } from "lucia";
+import pg from 'pg';
+const pool = new pg.Pool();
+const adapter = new NodePostgresAdapter(pool, {
+    user: "auth_user",
+    session: "user_session"
+});
+
+export const lucia = new Lucia(adapter, {
+    sessionExpiresIn: new TimeSpan(1, "d"),
+    getSessionAttributes: (attributes) => {
+        return {
+            apiKey: attributes.api_key
+        }
+    },
+    sessionCookie: {
+        
+    }
+});
+
+declare module "lucia" {
+    interface Register {
+        Lucia: typeof Lucia;
+        DatabaseSessionAttributes: DatabaseSessionAttributes;
+    }
+    interface DatabaseSessionAttributes {
+        api_key: string;
+    }
+}
 
 /**
  * The authentication module.
