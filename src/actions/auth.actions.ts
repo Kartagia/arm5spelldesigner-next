@@ -24,7 +24,7 @@ export interface ErrorStruct {
  * Signup action signing up to the system.
  * @param formData The signup form contents.
  */
-export async function signup(previousState: ErrorStruct, formData: FormData): Promise<ErrorStruct> {
+export async function signup(previousState:  {errors?: ErrorStruct, origin?:string}, formData: FormData) {
 
     const email = formData.get(EmailField);
     const password = formData.get(PasswordField);
@@ -39,7 +39,7 @@ export async function signup(previousState: ErrorStruct, formData: FormData): Pr
     }
 
     if (Object.keys(errors).length > 0) {
-        return errors;
+        return {...previousState, errors};
     } else {
         /**
          * @todo Perform signup.
@@ -54,7 +54,7 @@ export async function signup(previousState: ErrorStruct, formData: FormData): Pr
  * Login action. 
  * @param formData The login form contents.
  */
-export async function login(previousState: ErrorStruct, formData:FormData): Promise<ErrorStruct> {
+export async function login(previousState: {errors?: ErrorStruct, origin?:string}, formData:FormData) {
     const email = formData.get(EmailField);
     const password = formData.get(PasswordField);
 
@@ -62,14 +62,14 @@ export async function login(previousState: ErrorStruct, formData:FormData): Prom
     };
 
     if (Object.keys(errors).length > 0) {
-        return errors;
+        return {...previousState, errors};
     } else {
         /**
          * @todo Perform creation of a session.
          */
 
         // Redirect. 
-        redirect("/");
+        redirect(previousState?.origin ?? "/");
     }
 
 }
