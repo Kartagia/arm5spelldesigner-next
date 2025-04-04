@@ -50,3 +50,6 @@ package-lock.json
 
 # IDX configuration
 .idx/dev.nix
+
+# VSCode
+.vscode
