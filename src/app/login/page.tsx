@@ -1,9 +1,11 @@
 "use client";
-import { signup, login, ErrorStruct } from '@/actions/auth.actions'
+import { signup, login, ErrorStruct, LoginFormState } from '@/actions/auth.actions'
 import { EmailField, PasswordField } from '@/lib/auth';
 import Link from 'next/link';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { useFormState } from 'react-dom';
+
+export type LoginMode = "signup"|"login";
 
 /**
  * The porperties of the login component.
@@ -12,7 +14,7 @@ export interface LoginProperties {
     /**
      * The mode of the authentication.
      */
-    mode: "signup"|"login";
+    mode: LoginMode;
 
     /**
      * The origin route where the successful sigin or login routes the user.
@@ -21,13 +23,15 @@ export interface LoginProperties {
 }
 
 /**
- * 
+ * The compoentn handling login and signup.
  * @param param0 
  * @returns 
  */
-export default function LoginPage({ mode = "signup", origin="/"}: LoginProperties) {
-    const action = (mode === "signup" ? signup : login);
-    const [formState, formAction] = useFormState( action, { errors: {}, origin });
+export function LoginComponent({ mode = "signup", origin="/", action=signup,
+    onModeChange = undefined
+}: 
+    LoginProperties & { action: typeof signup|typeof login, onModeChange?:(newMode: LoginMode) => void}) {
+    const [formState, formAction] = useFormState( action, { errors: {} as ErrorStruct, origin } as LoginFormState);
     const emailField = EmailField;
     const pwdField = PasswordField;
     const id = useId();
@@ -36,6 +40,10 @@ export default function LoginPage({ mode = "signup", origin="/"}: LoginPropertie
     const caption = (mode === "signup" ? "Create account" : "Log in")
     const title = (mode === "signup" ? "Create a new account" : "Log in with an existing account");
     const errors = formState?.errors ?? {};
+
+    /**
+     * @todo: Add mode change handler. 
+     */
 
     return (<form action={formAction} id={id}>
         <div>
@@ -57,4 +65,26 @@ export default function LoginPage({ mode = "signup", origin="/"}: LoginPropertie
             <footer><Link href="/login?mode=signup">Sign up with new account</Link></footer>
         </div>
     </form>);
+}
+
+/**
+ * Create a login page.
+ * @param param0 
+ * @returns The JSX React content of the page.
+ */
+export default function LoginPage({ mode = "signup", origin="/"}: LoginProperties) {
+    /**
+     * @todo Add getting the origin and mode from internal state.
+     */
+    const [currentMode, setCurrentMode] = useState(mode);
+
+    if (mode === "signup") {
+        return (<LoginComponent mode={currentMode} 
+            onModeChange={ (newMode: LoginMode) => {setCurrentMode(newMode)}}
+            origin={origin} action={signup} />)
+    } else {
+        return (<LoginComponent mode={currentMode}
+            onModeChange={ (newMode: LoginMode) => {setCurrentMode(newMode)}}
+            origin={origin} action={login} />)
+    }
 }

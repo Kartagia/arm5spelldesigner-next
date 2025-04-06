@@ -152,5 +152,5 @@ export interface LoginFormState {
     /**
      * The errors on the form.
      */
-    errors?: Record<string, string>;
+    errors?: ErrorStruct;
 }
