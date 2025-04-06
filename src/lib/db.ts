@@ -1,4 +1,3 @@
-"use server";
 import pg, { Connection, Pool, PoolClient, PoolOptions, QueryResult, QueryResultRow } from 'pg';
 
 /**

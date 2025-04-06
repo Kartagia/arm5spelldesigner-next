@@ -1,6 +1,7 @@
 "use client";
 import { signup, login, ErrorStruct, LoginFormState } from '@/actions/auth.actions'
 import { EmailField, PasswordField } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { useId, useState } from 'react';
 import { useFormState } from 'react-dom';
@@ -62,7 +63,19 @@ export function LoginComponent({ mode = "signup", origin="/", action=signup,
                 </div>
                 <div className="actionbar"><button type="submit" name="submit">{caption}</button></div>
             </main>
-            <footer><Link href="/login?mode=signup">Sign up with new account</Link></footer>
+            <footer><a onClick={(e) => {
+                if (onModeChange) {
+                    onModeChange("signup");
+                } else {
+                    redirect("/login?mode=signup");
+                }
+            }}>Sign up with new account</a><a onClick={(e) => {
+                if (onModeChange) {
+                    onModeChange("login");
+                } else {
+                    redirect("/login?mode=login");
+                }
+            }}>Login with an existing account</a></footer>
         </div>
     </form>);
 }
@@ -72,7 +85,7 @@ export function LoginComponent({ mode = "signup", origin="/", action=signup,
  * @param param0 
  * @returns The JSX React content of the page.
  */
-export default function LoginPage({ mode = "signup", origin="/"}: LoginProperties) {
+export default function LoginPage({ mode = "login", origin="/"}: LoginProperties) {
     /**
      * @todo Add getting the origin and mode from internal state.
      */
