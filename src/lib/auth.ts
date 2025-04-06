@@ -3,7 +3,7 @@ import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
 import { Lucia, TimeSpan } from "lucia";
 import pg, { Connection, PoolClient } from 'pg';
 import { createApiConnection, getAuthDabaseProperties } from "./db";
-import { randomBytes, pbkdf2 } from 'node:crypto';
+import { randomBytes, pbkdf2, generateKey } from 'node:crypto';
 import { UserInfo } from "./users";
 const pool = new pg.Pool(getAuthDabaseProperties());
 const adapter = new NodePostgresAdapter(pool, {
@@ -36,13 +36,19 @@ export interface AuthConfig {
      * The hashing digest usest. 
      */
     digest: string;
+
+    /**
+     * The length of the API key in bytes.
+     */
+    apiKeyLen: number;
 }
 
 const config : AuthConfig = {
     iterations: 100000,
     keyLen: 64,
     saltLen: 20,
-    digest: 'sha512'
+    digest: 'sha512',
+    apiKeyLen: 32
 }
 
 /**
@@ -105,6 +111,11 @@ export function validEmail(value: string): boolean {
  */
 export class PasswordCompromisedError extends Error {
 
+    /**
+     * Create a new password comprimsied error.
+     * @param message Optional message of the error.
+     * @param hash The optional ivnalid hash. 
+     */
     constructor(message: string = "Password hash found in the compromised hashes", 
         hash: string | undefined = undefined
     ) {
@@ -166,7 +177,7 @@ export function hashPassword(password: string, salt: string): Promise<string> {
  * @returns True, if and only if the email is a valid password.
  */
 export function validPassword(value: string): boolean {
-    return value.trim().length >= 14;
+    return value.trim().length > 14;
 }
 
 /**
@@ -198,7 +209,7 @@ export async function setPassword(userId: string, password: string,
             }
         } catch (error) {
             // Error handling.
-            console.error("setPassword: Coudl not update user credentials", error);
+            console.error("setPassword: Could not update user credentials", error);
             throw error;
         } finally {
             if (!transaction) {
@@ -212,11 +223,15 @@ export async function setPassword(userId: string, password: string,
 /**
  * Create a new API session.
  * @param userId The user id.
- * @param apiKey The api key.
+ * @param apiKey The api key. Defaults to a new generated API key.
  * @returns The promise of session.
  */
-export function createSession(userId: string, apiKey: string) {
-    return lucia.createSession(userId, { api_key: apiKey });
+export function createSession(userId: string, apiKey: string|undefined = undefined) {
+    if (apiKey) {
+        return lucia.createSession(userId, { api_key: apiKey });
+    } else {
+        return lucia.createSession(userId, { api_key: randomBytes(config.apiKeyLen).toString('base64') });
+    }
 }
 /**
  * The credentials of the user.
