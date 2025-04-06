@@ -144,6 +144,74 @@ export async function setUserPassword(userId: string, password: string): Promise
     });
 }
 
+/**
+ * Seek user information.
+ * @param details The details of the seeked user info.
+ * @param transaction The optional transaction, if the seeking is part of a tranasction.
+ * @returns The promise of the found user information of the first found user.
+ */
+export async function seekUserInfo(details: Partial<UserInfo>, transaction: PoolClient|undefined = undefined): Promise<UserInfo> {
+    if (Object.keys(details).length === 0) {
+        return Promise.reject("No such user exists");
+    }
+    const where : [string, any][] = [];
+
+    ( Object.keys(details) as (keyof typeof details)[]).forEach( (field: keyof typeof details, index: number) => {
+        switch (field) {
+            case "id": 
+            case "email":
+                where.push([ `${field} = ${index +1}`, details[field] ]);
+                break;
+            case "expired":
+                where.push([ `expires ${details[field] ? ">=" : "<"} NOW() + INTERVAL '$${index +1} days'`, config.userExpiration]);
+                break;
+        }
+    })
+
+    if (where.length === 0) {
+        return Promise.reject("No such user exists.");
+    }
+    
+    return (transaction ? Promise.resolve(transaction) : createAuthConnection()).then(
+        (dbh) => {
+            const result = dbh.query("SELECT * FROM auth_user WHERE " + where.map(
+                whereEntry => (whereEntry[0])
+            ).join(" AND "), where.map( whereEntry => (whereEntry[1]))).then(
+                resultRow => {
+                    if (resultRow.rowCount ?? 0  > 0) {
+                        return {
+                            id: resultRow.rows[0].id,
+                            email: resultRow.rows[0].email,
+                            expired: resultRow.rows[0].expired ?? true,
+                            verified: resultRow.rows[0].verified ?? false
+                        } as UserInfo;
+                    } else {
+                        throw "No such user exist.";
+                    }
+                }, 
+                error => {
+                    throw "No such user exists.";
+                }
+            );
+
+            // Adding closing of the created transaction.
+            if (!transaction) {
+                result.finally( () => {
+                    dbh.release();
+                });    
+            }
+            return result;
+        }
+    )
+
+}
+
+/**
+ * Update user information. 
+ * @param details The new details of the user.
+ * @param transaction The optional trnsaction, if the update operation belongs
+ * to a transaction. 
+ */
 export async function updateUser(details: Partial<Omit<UserInfo, "expired">>, transaction: PoolClient|undefined = undefined): Promise<void> {
     if (details.id == undefined) {
         return Promise.reject(new Error(`User identifier is required for update`));
