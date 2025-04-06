@@ -7,6 +7,34 @@ import pg, { Connection, Pool, PoolClient, PoolOptions, QueryResult, QueryResult
  */
 
 /**
+ * Create the authentication database.
+ * @param dbh The database connection.
+ * @returns The promise of the database handle with created tables.
+ */
+export function createAuthDatabase(dbh: PoolClient): Promise<PoolClient> {
+
+    return dbh.query("CREATE TABLE IF NOT EXISTS auth_user ( id TEXT PRIMARY KEY, email varchar NOT NULL unique, displayName varchar(255), verified boolean default false, expires timestamp )").then(
+        (result) => {
+            return dbh;
+    }).then(dbh => {
+        return dbh.query("create table if not exists user_credentials (id text not null unique references auth_user(id) on update cascade on delete cascade, password varchar(1024) not null, salt varchar(255) not null, primary key (id))").then(
+            (result) => {
+
+                return dbh;
+            }
+        )
+    }).then(dbh => {
+        return dbh.query("create table if not exists user_session (id TEXT PRIMARY KEY, expires_at TIMESTAMPTZ NOT NULL, user_id TEXT NOT NULL REFERENCES auth_user(id) )").then(
+            (result) => {
+                return dbh;
+            }
+        )
+    });
+}
+
+
+
+/**
  * Get the pool options for the authentication database.
  * @returns The pool options for authentication database.
  */
@@ -45,7 +73,7 @@ export function getApiDatabaseProperties(): Partial<PoolOptions> {
         host: process.env.DATA_HOST,
         port: Number(process.env.DATA_PORT),
         password: process.env.DATA_PASSWORD,
-    }; 
+    };
 }
 
 /**
@@ -68,7 +96,7 @@ export function createApiConnection() {
  * @returns The promise of a connection handling the transaction.
  */
 export async function createTransaction(pool: Pool): Promise<PoolClient> {
-    return await pool.connect().then( async (connection) => {
+    return await pool.connect().then(async (connection) => {
         await connection.query("start transaction");
         return connection;
     });
@@ -82,17 +110,17 @@ export async function createTransaction(pool: Pool): Promise<PoolClient> {
  * Defaults to a new autocommitting transaction.
  * @returns The promise of the query result.
  */
-export function apiQuery<RESULT extends QueryResultRow = any>(sql: string, params: any[], transaction: pg.PoolClient|undefined = undefined) : Promise<QueryResult<RESULT>> {
-    return new Promise( async (resolve, reject) => {
-        const dbh = transaction ?? ( await createTransaction(apiPool) );
+export function apiQuery<RESULT extends QueryResultRow = any>(sql: string, params: any[], transaction: pg.PoolClient | undefined = undefined): Promise<QueryResult<RESULT>> {
+    return new Promise(async (resolve, reject) => {
+        const dbh = transaction ?? (await createTransaction(apiPool));
         try {
-            const result : pg.QueryResult<RESULT> = await dbh.query(sql, params);
+            const result: pg.QueryResult<RESULT> = await dbh.query(sql, params);
             if (!transaction) {
                 await dbh.query("commit");
                 dbh.release();
             }
             resolve(result);
-        } catch(error) {
+        } catch (error) {
             await dbh.query("rollback");
             if (!transaction) {
                 dbh.release();
@@ -111,16 +139,16 @@ export function apiQuery<RESULT extends QueryResultRow = any>(sql: string, param
  * Defaults to a new autocommitting transaction.
  * @returns The promise of the query result.
  */
-export function authQuery<RESULT extends QueryResultRow>(sql: string, params: any[], transaction: pg.PoolClient|undefined = undefined) {
-    return new Promise( async (resolve, reject) => {
-        const dbh = transaction ?? ( await createTransaction(authPool) );
+export function authQuery<RESULT extends QueryResultRow>(sql: string, params: any[], transaction: pg.PoolClient | undefined = undefined) {
+    return new Promise(async (resolve, reject) => {
+        const dbh = transaction ?? (await createTransaction(authPool));
         try {
-            const result : pg.QueryResult<RESULT> = await dbh.query(sql, params);
+            const result: pg.QueryResult<RESULT> = await dbh.query(sql, params);
             if (!transaction) {
                 await dbh.query("commit");
             }
             resolve(result);
-        } catch(error) {
+        } catch (error) {
             await dbh.query("rollback");
             reject(error);
         } finally {
