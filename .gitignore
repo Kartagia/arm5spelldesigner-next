@@ -56,3 +56,6 @@ package-lock.json
 
 # Compiled scripts.
 script/
+
+# Ignore sqls
+*.sql
