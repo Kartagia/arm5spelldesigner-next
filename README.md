@@ -74,10 +74,25 @@ variables, which are replaced with variables:
 
 
 If the authentication and api databases does not exist, they may be created 
-by runing: 
+by runing following commands: 
 ```bash
-npx script/script/dbadmin.js --init all
+npx script/script/dbadmin.js --populate create db all
 ```
+The former command populates the arts, ranges, spells, and spell guidelines.
+
+If an existing authentication database needs replaced with clean database, run
+following command:
+```bash
+npx script/script/dbadmin.js --init create db auth
+``` 
+
+If an existing api database needs replaced with clean database, run
+following command:
+```bash
+npx script/script/dbadmin.js --init create db api
+``` 
+
+
 
 ## Running 
 
