@@ -72,6 +72,21 @@ export async function createTable(dbh: PoolClient | Client, tableName: string, f
     });
 }
 
+export interface AuthDbOptions {
+    clean?: boolean;
+    populate?: boolean;
+    userTable?: string;
+    sessionTable?: string;
+    credentialTable?: string;
+}
+
+export async function deleteAuthDb(abh: PoolClient | Client, { clean = false, populate = false,
+    userTable = "auth_user",
+    credentialTable = "user_credentials",
+    sessionTable = "user_session"
+}: AuthDbOptions): Promise<void> {
+
+}
 
 /**
  * Create authentication tables.
@@ -83,7 +98,7 @@ export async function createAuthDb(dbh: PoolClient | Client, { clean = false, po
     userTable = "auth_user",
     credentialTable = "user_credentials",
     sessionTable = "user_session"
-}: { clean?: boolean, populate?: boolean, userTable?: string, sessionTable?: string, credentialTable?: string } = {}) {
+}: AuthDbOptions = {}) {
 
     return dbh.query("begin").then(
         async () => {
@@ -125,7 +140,7 @@ export async function createAuthDb(dbh: PoolClient | Client, { clean = false, po
             result.created += (await dbh.query("create table if not exists " + escapeIdentifier(credentialTable) +
                 "(" +
                 ["id text primary key references auth_user(id)", "password varchar(1024) not null", "salt varchar(255) not null"].join(",") +
-                ")").then( (result) => {
+                ")").then((result) => {
                     return result.rowCount ?? 0;
                 }));
             console.log("Creating table %s", sessionTable);
@@ -135,7 +150,7 @@ export async function createAuthDb(dbh: PoolClient | Client, { clean = false, po
                     "expires_at timestamp with time zone not null",
                     "user_id text",
                     "api_key varchar(255) not null"].join(",") +
-                ")").then( (result) => {
+                ")").then((result) => {
                     return result.rowCount ?? 0;
                 }));
             console.log("Created all tables");
@@ -157,6 +172,9 @@ export async function createAuthDb(dbh: PoolClient | Client, { clean = false, po
  */
 const apiPool = new Pool(getApiDatabaseProperties());
 
+/**
+ * A API resource.
+ */
 export interface APIResource {
 
     /**
@@ -178,8 +196,196 @@ export interface APIResource {
      * The sql commands to create initial content of the resource.
      */
     initial?: (SqlCommand | string)[];
+
+    /**
+     * The list of table names.
+     */
+    tables?: string[],
+
+    /**
+     * The list of view names.
+     */
+    views?: string[],
+
+    /**
+     * The list of API resource names the resource depends on. 
+     * - Dependencies must be created before the dependency. 
+     */
+    dependency?: string[];
+
+    /**
+     * The sub resources of the resource in the order they should be created.
+     * Sub resources are created after the main resource, and deleted with main resource.
+     */
+    subResources?: APIResource[];
 }
 
+interface ApiResourceSearchOptions {
+
+
+    /**
+     * Does the search check the sub modules too.
+     */
+    recurse?: boolean;
+
+    /**
+     * Does the search return the sub module with name.
+     */
+    subModule?: boolean;
+}
+
+/**
+ * Predicate testing a value.
+ */
+type Predicate<TYPE> = (tested: TYPE) => boolean;
+
+/**
+ * Predicate promising whether a value fulfils the predicate.
+ */
+type PromisedPredicate<TYPE> = (tested: TYPE) => Promise<boolean>;
+
+function PromisedPredicate<TYPE>(predicate: Predicate<TYPE>): PromisedPredicate<TYPE> {
+    return async (tested: TYPE) => (predicate(tested));
+}
+
+/**
+ * Get api resource
+ * @param resources The api resources.
+ * @param seeked The name of the seeked value.
+ * @param options The options of search.
+ * @returns A promise of the first api resource fulfilling the requirements. 
+ * @throws {"Not Found"} There was no api resource with given name.
+ */
+function getApiResources(resources: readonly APIResource[], seeked: string | Predicate<APIResource>, options: ApiResourceSearchOptions = {}): Promise<APIResource[]> {
+    return new Promise(async (resolve, reject) => {
+        const seekerFn: Predicate<APIResource> = typeof seeked === "string" ? (tested) => (tested.name === seeked) : seeked;
+        const result = resources.filter(async (api) => (seekerFn(api) ||
+            options.recurse && (api.subResources && await getApiResource(api.subResources, seekerFn).then(
+                (found) => (true),
+                () => (false)
+            ))));
+        if (options.subModule) {
+
+            const flatten = async function <TYPE>(result: Promise<TYPE[]>, subResult: Promise<TYPE[]>, index: Number, array: Promise<TYPE[]>[]) {
+                return result.then(async (all) => { all.push(...(await subResult)); return all });
+            };
+
+            const seekSubModules = async (cursor: APIResource, seeker: Predicate<APIResource>): Promise<APIResource[]> => {
+                if (seekerFn(cursor)) {
+                    return [cursor];
+                } else if (cursor.subResources) {
+                    return await cursor.subResources.flatMap(async (resource) => await seekSubModules(resource, seekerFn)).reduce(
+                        flatten,
+                        Promise.resolve([])
+                    );
+                } else {
+                    return [];
+                }
+            }
+            resolve(result.flatMap(async (resource) => await seekSubModules(resource, seekerFn)).reduce(
+                flatten, Promise.resolve([])
+            ));
+        } else {
+            resolve(result);
+        }
+    });
+}
+
+/**
+ * Create dependencies. If created is given, no dependency in the list is created.
+ * @param resource The resource, whose dependencies.
+ * @param ignored The previously created resources.
+ * @returns The promise of ignored modules after the dependency creation.
+ */
+async function createDependencies(resource: APIResource, ignored?: string[]): Promise<string[]> {
+    const created = [...(ignored ?? [])];
+    if (resource.dependency) {
+        /*
+         * Use of the for is necessary to ensure a dependency is created before
+         * its successor dependencies are created. 
+         */
+        for (const dependency in (resource.dependency.filter((item) => !(item in created)))) {
+            await getApiResource(apiResources, dependency).then(
+                (dep) => (createApiResource(dep).then(() => {
+                    created.push(dependency);
+                }))
+                ).catch((err) => {
+                    return Promise.reject("Could not create dependency " + dependency)
+                })
+        }
+        return created;
+    } else {
+        return created;
+    }
+}
+
+async function createApiResource(resource: APIResource | Promise<APIResource>, seeker: Predicate<APIResource> = () => true): Promise<void> {
+    const options = {clean: false, populate: false};
+    const connection = createApiConnection();
+    if (resource instanceof Promise) {
+        return resource.then(
+            async (created) => {
+                return createApiResource(created, seeker);
+            }
+        )
+    } else {
+        try {
+            // Create dependencies.
+            let ignored = createDependencies(resource);
+            return connection.then( async (dbh) => {
+                if (options.clean)  {
+                    for (const command in resource.delete) {
+                        await dbh.query(command.toString());
+                    }
+                }
+                for (const command in resource.create) {
+                    await dbh.query(command.toString());
+                }
+                if (options.populate) {
+                    for (const command in resource.initial) {
+                        await dbh.query(command.toString());
+                    }
+                }
+            })
+        } catch (err) {
+            return Promise.reject(err);
+        }
+    }
+}
+
+/**
+ * Get api resource
+ * @param resources The api resources.
+ * @param seeked The name of the seeked value.
+ * @param options The options of search.
+ * @returns A promise of the first api resource fulfilling the requirements. 
+ * @throws {"Not Found"} There was no api resource with given name.
+ */
+function getApiResource(resources: readonly APIResource[], seeked: string | Predicate<APIResource>, options: ApiResourceSearchOptions = {}): Promise<APIResource> {
+    return new Promise(async (resolve, reject) => {
+        const seekerFn: Predicate<APIResource> = typeof seeked === "string" ? (tested) => (tested.name === seeked) : seeked;
+        const result = resources.find(async (api) => (seekerFn(api) ||
+            options.recurse && (api.subResources && await getApiResource(api.subResources, seekerFn).then(
+                (found) => (true),
+                () => (false)
+            ))));
+        if (result) {
+            let cursor = result;
+            if (options.subModule) {
+                while (seekerFn(cursor)) {
+                    cursor = await getApiResource(cursor.subResources ?? [], seekerFn);
+                }
+            }
+            resolve(cursor);
+        } else {
+            reject("Not found");
+        }
+    });
+}
+
+/**
+ * A sql command.
+ */
 interface SqlCommand {
     /**
      * Get the strign representation containing the SQL query.
@@ -271,20 +477,58 @@ function createViewSql(name: string, sql: string): CreateView {
  * The API resources and their database tables. 
  */
 const apiResources: readonly APIResource[] = [
-    { name: "guid", create: [createTableSql("guids", ["guid GUID primary key", "type varchar"], [])], delete: ["drop table if exists guids"] },
     {
-        name: "arts", create: [createTableSql("arts", [], []), createTableSql("techniques"), [], [], createTableSql("forms", [], [])],
-        delete: ["drop table if exists arts cascade"]
+        name: "guid",
+        create: [createTableSql("guids", ["guid GUID primary key", "type varchar"], [])],
+        delete: ["drop table if exists guids"],
+        tables: ["guids"],
+        views: []
     },
     {
-        name: "magic", create: [createTableSql("magicstyles", [], []), createTableSql("arts", [], []), createTableSql("techniques", [], []),
-        createTableSql("forms", [], [])],
-        delete: ["drop table if exists magicstyles", "drop table if exists arts cascade"]
-    },
-    {
-        name: "spells", create: [
+        name: "magic",
+        create: [createTableSql("magicstyles", [], [])],
+        delete: ["drop table if exists magicstyles cascade"],
+        tables: ["magicstyles"],
+        views: [],
+        subResources: [
+            {
+                name: "arts", create: [
+                    createTableSql("arts", ["id smallserial primary key", "name character varyign(20) not null", "abbrev character varyign(5) not null"], []),
+                    createTableSql("techniques", ["art_id smallint not null references arts(id) on update cascade on delete cascade",
+                        "style_id smallint not null references magicstyles(id) on update cascade on delete cascade"], ["primary key (art_id, style_id)"]),
+                    createTableSql("forms", ["art_id smallint not null references arts(id) on update cascade on delete cascade",
+                        "style_id smallint not null references magicstyles(id) on update cascade on delete cascade"], ["primary key (art_id, style_id)"]),
+                    createTableSql("spell_guidelines", ["level varchar(3) not null",
+                        "style_id smallint not null default 1 references magicstyles(id) on update cascade on delete cascade",
 
-            createTableSql("spellguidelines", [], [])], delete: ["drop table if exists spellguidelines cascade"]
+                    ], [])],
+                delete: ["drop table if exists arts cascade", "drop table if exists forms cascade", "drop table if exists techniques cascade"],
+                tables: ["arts", "forms", "techniques"],
+                views: [],
+                subResources: [
+
+
+                ]
+            },
+
+
+        ]
+    },
+    {
+        name: "spellguidelines",
+        create: [],
+        delete: [],
+        dependency: ["arts"]
+    },
+    {
+        name: "spells",
+        create: [
+            createTableSql("spellguidelines", [], [])
+        ],
+        delete: ["drop table if exists spellguidelines cascade"],
+        dependency: [
+            "spellguidelines"
+        ]
     },
 ];
 
@@ -359,7 +603,61 @@ export async function createApiDb(dbh: PoolClient | Client, {
         });
 }
 
+export async function deleteApiDb(dbh: PoolClient | Client, {
+    all = false, clean = false, populate = false,
+    resourceNames = []
 
+}: {
+    /**
+     * Does the consruction create all API resources. 
+     */
+    all?: boolean,
+    /**
+     * The list of created API resources. 
+     */
+    resourceNames?: string[],
+    /**
+     * Does the operation perform clean build removing existing tables and views. 
+     */
+    clean?: boolean,
+    /**
+     * Does the operation populate the tables. 
+     */
+    populate?: boolean,
+} = {}) {
+    /**
+     * The affected API resoures.
+     */
+    const resources = [...apiResources.filter((resource: APIResource) => (all || resource.name in (resourceNames ?? [])))];
+
+    return dbh.query("begin").then(
+        async () => {
+            const result = { created: 0, dropped: 0 }
+            if (clean) {
+                console.log("Cleaning up old database");
+                await Promise.all(resources.map(
+                    (resource: APIResource) => {
+                        Promise.all(resource.delete.map((sql) => (dbh.query(sql.toString()))));
+                    }
+                ));
+                console.log("Cleaning up completed with " + result.dropped + " tables removed");
+            }
+            console.log("Creating new tables");
+            await Promise.all(
+                resources.map((resource) => (Promise.all(resource.create.map((sql) => (dbh.query(sql.toString()))))))
+            );
+            if (populate) {
+                // Populate the tables with defaults.
+                await Promise.all(
+                    resources.map((resource) => (resource.initial ? Promise.all(resource.initial.map(
+                        (sql) => (dbh.query(sql.toString())))) : Promise.resolve(`Resource ${resource.name} had no initial values`)))
+                )
+            }
+            return Promise.resolve(`Created database: ${result.dropped} dropped, ${result.created} created`)
+        }).catch(err => {
+
+        });
+}
 
 /**
  * Create a new transaction.
