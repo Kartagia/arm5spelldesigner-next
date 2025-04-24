@@ -1,5 +1,5 @@
 "use server";
-import { Client, escapeIdentifier, Pool, PoolClient, PoolOptions, QueryResult, QueryResultRow } from 'pg';
+import { Client, escapeIdentifier, escapeLiteral, Pool, PoolClient, PoolOptions, QueryResult, QueryResultRow } from 'pg';
 
 /**
  * The database connection module.
@@ -72,6 +72,9 @@ export async function createTable(dbh: PoolClient | Client, tableName: string, f
     });
 }
 
+/**
+ * Authentication database options.
+ */
 export interface AuthDbOptions {
     clean?: boolean;
     populate?: boolean;
@@ -80,12 +83,38 @@ export interface AuthDbOptions {
     credentialTable?: string;
 }
 
-export async function deleteAuthDb(abh: PoolClient | Client, { clean = false, populate = false,
-    userTable = "auth_user",
-    credentialTable = "user_credentials",
-    sessionTable = "user_session"
-}: AuthDbOptions): Promise<void> {
+const defaultAuthDbOptins: Required<AuthDbOptions> = {
+    clean: false, populate: false, userTable: "auth_user", credentialTable: "user_credentials",
+    sessionTable: "user_session"
+};
 
+/**
+ * Delete authentication database.
+ * @param dbh The database handle.
+ * @param options The autehntication database options. 
+ */
+export async function deleteAuthDb(dbh: PoolClient | Client, options: AuthDbOptions = {}): Promise<void> {
+    const { clean, populate, userTable, credentialTable, sessionTable } = { ...defaultAuthDbOptins, ...options };
+
+    return dbh.query("begin").then(
+        async () => {
+            if (clean) {
+                // Delete the tables and views associated with them. 
+                await dbh.query("drop table if exists " + [escapeIdentifier(sessionTable), escapeIdentifier(userTable), escapeIdentifier(credentialTable)].join(",") + " cascade")
+            } else {
+                // Just delete the data. 
+                await dbh.query("Trucate " + [escapeIdentifier(sessionTable), escapeIdentifier(userTable), escapeIdentifier(credentialTable)].join(",") + " cascade");
+            }
+
+        }
+    ).then(
+        async () => {
+            await dbh.query("commit");
+        },
+        async () => {
+            await dbh.query("rollback");
+        }
+    )
 }
 
 /**
@@ -105,9 +134,10 @@ export async function createAuthDb(dbh: PoolClient | Client, { clean = false, po
             const result = { created: 0, dropped: 0 }
             if (clean) {
                 console.log("Cleaning up old database");
-                await [["drop table if exists " + escapeIdentifier(userTable) + " cascade", userTable],
-                ["drop table if exists " + escapeIdentifier(credentialTable), credentialTable],
-                ["drop table if exists " + escapeIdentifier(sessionTable), sessionTable]
+                [
+                    ["drop table if exists " + escapeIdentifier(userTable) + " cascade", userTable],
+                    ["drop table if exists " + escapeIdentifier(credentialTable), credentialTable],
+                    ["drop table if exists " + escapeIdentifier(sessionTable), sessionTable]
                 ].forEach(async ([sql, tableName]) => {
                     console.log("Executing: ", sql);
                     result.dropped += (await dbh.query(sql).then(
@@ -121,9 +151,10 @@ export async function createAuthDb(dbh: PoolClient | Client, { clean = false, po
                 });
                 console.log("Cleaning up completed with " + result.dropped + " tables removed");
             }
-            result.created += (await dbh.query("create table if not exists " + escapeIdentifier(userTable) +
-                "(" +
-                ["id text primary key ",
+            result.created += (await dbh.query(
+                "create table if not exists " + escapeIdentifier(userTable) + "(" +
+                [
+                    "id text primary key ",
                     "email varchar unique",
                     "displayName varchar(255)",
                     "verified boolean default false",
@@ -137,16 +168,21 @@ export async function createAuthDb(dbh: PoolClient | Client, { clean = false, po
                     throw err;
                 }));
             console.log("Creating table %s", credentialTable);
-            result.created += (await dbh.query("create table if not exists " + escapeIdentifier(credentialTable) +
-                "(" +
-                ["id text primary key references auth_user(id)", "password varchar(1024) not null", "salt varchar(255) not null"].join(",") +
+            result.created += (await dbh.query(
+                "create table if not exists " + escapeIdentifier(credentialTable) + "(" +
+                [
+                    "id text primary key references auth_user(id)",
+                    "password varchar(1024) not null",
+                    "salt varchar(255) not null"
+                ].join(",") +
                 ")").then((result) => {
                     return result.rowCount ?? 0;
                 }));
             console.log("Creating table %s", sessionTable);
-            result.created += (await dbh.query("create table if not exists " + escapeIdentifier(sessionTable) +
-                "(" +
-                ["id text primary key references auth_user(id)",
+            result.created += (await dbh.query(
+                "create table if not exists " + escapeIdentifier(sessionTable) + "(" +
+                [
+                    "id text primary key references auth_user(id)",
                     "expires_at timestamp with time zone not null",
                     "user_id text",
                     "api_key varchar(255) not null"].join(",") +
@@ -220,8 +256,10 @@ export interface APIResource {
     subResources?: APIResource[];
 }
 
+/**
+ * The search options for api resource search.
+ */
 interface ApiResourceSearchOptions {
-
 
     /**
      * Does the search check the sub modules too.
@@ -230,6 +268,7 @@ interface ApiResourceSearchOptions {
 
     /**
      * Does the search return the sub module with name.
+     * This option has no effect, if recurse is false.
      */
     subModule?: boolean;
 }
@@ -244,8 +283,24 @@ type Predicate<TYPE> = (tested: TYPE) => boolean;
  */
 type PromisedPredicate<TYPE> = (tested: TYPE) => Promise<boolean>;
 
-function PromisedPredicate<TYPE>(predicate: Predicate<TYPE>): PromisedPredicate<TYPE> {
-    return async (tested: TYPE) => (predicate(tested));
+/**
+ * Create a promised predicate.
+ * @param predicate The predicate converted to promised predicate.
+ * @param rejectOnFailure Does the predicate reject on failure. If undefined, failure returns false.
+ * @returns The promised predicate fulfilling the given predicate.
+ */
+function PromisedPredicate<TYPE, ERROR = any>(predicate: Predicate<TYPE>, rejectOnFailure: ERROR | undefined = undefined): PromisedPredicate<TYPE> {
+    if (rejectOnFailure) {
+        return async (tested: TYPE) => {
+            if (predicate(tested)) {
+                return true;
+            } else {
+                throw rejectOnFailure;
+            }
+        }
+    } else {
+        return async (tested: TYPE) => (predicate(tested));
+    }
 }
 
 /**
@@ -261,11 +316,11 @@ function getApiResources(resources: readonly APIResource[], seeked: string | Pre
         const seekerFn: Predicate<APIResource> = typeof seeked === "string" ? (tested) => (tested.name === seeked) : seeked;
         const result = resources.filter(async (api) => (seekerFn(api) ||
             options.recurse && (api.subResources && await getApiResource(api.subResources, seekerFn).then(
-                (found) => (true),
+                () => (true),
                 () => (false)
             ))));
         if (options.subModule) {
-
+            // Seeking the actual module fulfilling the predicate.
             const flatten = async function <TYPE>(result: Promise<TYPE[]>, subResult: Promise<TYPE[]>, index: Number, array: Promise<TYPE[]>[]) {
                 return result.then(async (all) => { all.push(...(await subResult)); return all });
             };
@@ -286,6 +341,7 @@ function getApiResources(resources: readonly APIResource[], seeked: string | Pre
                 flatten, Promise.resolve([])
             ));
         } else {
+            // Resolve the reult as it is.
             resolve(result);
         }
     });
@@ -293,11 +349,12 @@ function getApiResources(resources: readonly APIResource[], seeked: string | Pre
 
 /**
  * Create dependencies. If created is given, no dependency in the list is created.
+ * @param dbh The database handle handling the dependency creation.
  * @param resource The resource, whose dependencies.
  * @param ignored The previously created resources.
  * @returns The promise of ignored modules after the dependency creation.
  */
-async function createDependencies(resource: APIResource, ignored?: string[]): Promise<string[]> {
+async function createDependencies(dbh: PoolClient | Client, resource: APIResource, ignored?: string[]): Promise<string[]> {
     const created = [...(ignored ?? [])];
     if (resource.dependency) {
         /*
@@ -306,12 +363,12 @@ async function createDependencies(resource: APIResource, ignored?: string[]): Pr
          */
         for (const dependency in (resource.dependency.filter((item) => !(item in created)))) {
             await getApiResource(apiResources, dependency).then(
-                (dep) => (createApiResource(dep).then(() => {
+                (dep) => (createApiResource(dbh, dep).then(() => {
                     created.push(dependency);
                 }))
-                ).catch((err) => {
-                    return Promise.reject("Could not create dependency " + dependency)
-                })
+            ).catch((err) => {
+                return Promise.reject("Could not create dependency " + dependency)
+            })
         }
         return created;
     } else {
@@ -319,21 +376,28 @@ async function createDependencies(resource: APIResource, ignored?: string[]): Pr
     }
 }
 
-async function createApiResource(resource: APIResource | Promise<APIResource>, seeker: Predicate<APIResource> = () => true): Promise<void> {
-    const options = {clean: false, populate: false};
+/**
+ * Create an api resource.
+ * @param dbh The database connection handling the query.
+ * @param resource The resource created.
+ * @param seeker The predicate selecting created api resources. 
+ * @returns Promise of completion.
+ */
+async function createApiResource(dbh: PoolClient | Client, resource: APIResource | Promise<APIResource>, seeker: Predicate<APIResource> = () => true): Promise<void> {
+    const options = { clean: false, populate: false };
     const connection = createApiConnection();
     if (resource instanceof Promise) {
         return resource.then(
             async (created) => {
-                return createApiResource(created, seeker);
+                return createApiResource(dbh, created, seeker);
             }
         )
     } else {
         try {
             // Create dependencies.
-            let ignored = createDependencies(resource);
-            return connection.then( async (dbh) => {
-                if (options.clean)  {
+            let ignored = createDependencies(dbh, resource);
+            return connection.then(async (dbh) => {
+                if (options.clean) {
                     for (const command in resource.delete) {
                         await dbh.query(command.toString());
                     }
@@ -420,6 +484,9 @@ interface CreateTable extends SqlCommand {
     toString(): string;
 }
 
+/**
+ * Command to create a view.
+ */
 interface CreateView extends SqlCommand {
 
     /**
@@ -453,8 +520,11 @@ function createTableSql(name: string, fields: string[] = [], constraints: string
         constraints,
         toString() {
             return "CREATE TABLE IF NOT EXISTS " + escapeIdentifier(this.tableName) + "(" +
-                [...this.fields.map((sql) => (sql.toString())).join(", "), ...this.constraints.map((sql) => (sql.toString())).join(", ")].join(", ")
-                + ")";
+                [
+                    ...this.fields.map((sql) => (sql.toString())).join(", "),
+                    ...this.constraints.map((sql) => (sql.toString())).join(", ")
+                ].join(", ") +
+                ")";
         }
     };
 }
@@ -479,10 +549,14 @@ function createViewSql(name: string, sql: string): CreateView {
 const apiResources: readonly APIResource[] = [
     {
         name: "guid",
-        create: [createTableSql("guids", ["guid GUID primary key", "type varchar"], [])],
-        delete: ["drop table if exists guids"],
+        create: [
+            createTableSql("guids", ["guid GUID primary key", "type varchar", "id integer", "starttime varchar(11)"], []),
+            createViewSql("temporary_guids", "select * from guids WHERE id is null or starttime is null"),
+            createViewSql("permanent_guids", "select * from guids WHERE id is not null and starttime is not null")
+        ],
+        delete: ["drop table if exists guids cascade"],
         tables: ["guids"],
-        views: []
+        views: ["temporary_guids", "permanent_guids"]
     },
     {
         name: "magic",
@@ -490,6 +564,11 @@ const apiResources: readonly APIResource[] = [
         delete: ["drop table if exists magicstyles cascade"],
         tables: ["magicstyles"],
         views: [],
+        dependency: ["guid"],
+        initial: [
+            "insert into magicstyles(name) values ('Hermetic')"
+        ],
+
         subResources: [
             {
                 name: "arts", create: [
@@ -500,34 +579,204 @@ const apiResources: readonly APIResource[] = [
                         "style_id smallint not null references magicstyles(id) on update cascade on delete cascade"], ["primary key (art_id, style_id)"]),
                     createTableSql("spell_guidelines", ["level varchar(3) not null",
                         "style_id smallint not null default 1 references magicstyles(id) on update cascade on delete cascade",
-
-                    ], [])],
+                    ], []),
+                    createViewSql(
+                        "api_arts_view",
+                        "SELECT guids.id, guids.guid, guids.type, guids.starttime, arts.name, arts.abbrev " +
+                        "FROM ((SELECT guids, id) from public.guids WHERE type like 'art.%') guids JOIN public.arts USING (id))"
+                    ),
+                    createViewSql(
+                        "formview",
+                        "select forms.art_id, forms.style_id, arts.anme as art, arts.abbrev, magicstyles.name as style " +
+                        "from (" +
+                        "(" +
+                        "public.forms JOIN public.arts ON (" +
+                        "( forms.art_id = arts.id)" +
+                        ")" +
+                        ") join public.magicstyles ON (" +
+                        "(forms.style_id = magicstyles.id)" +
+                        ")" +
+                        ")"
+                    ),
+                    createViewSql(
+                        "techniqueview",
+                        "select techniques.art_id, techniques.style_id, arts.anme as art, arts.abbrev, magicstyles.name as style " +
+                        "from (" +
+                        "(" +
+                        "public.techniques JOIN public.arts ON (" +
+                        "( techniques.art_id = arts.id)" +
+                        ")" +
+                        ") join public.magicstyles ON (" +
+                        "(techniques.style_id = magicstyles.id)" +
+                        ")" +
+                        ")"
+                    ),
+                    createViewSql("arts_view",
+                        "select formview.art_id, formview.style_id, formview.art, formview.abbrev, formview.style, 'Form'::text as type from formview " +
+                        "UNION " +
+                        "select techniqueview.art_id, techniqueview.style_id, techniqueview.art, techniqueview.abbrev, techniqueview.style, 'Technique'::text as type from techniqueview "
+                    )
+                ],
                 delete: ["drop table if exists arts cascade", "drop table if exists forms cascade", "drop table if exists techniques cascade"],
                 tables: ["arts", "forms", "techniques"],
-                views: [],
-                subResources: [
-
-
+                views: [
+                    "formview", "techiniqueview", "arts_view"
+                ],
+                initial: [
+                    // Create hermetic techniques by adding them first into arts and then to techniques.
+                    /** @todo Replace array of technique names with parameter  */
+                    "WITH created as (" +
+                    "INSERT INTO arts(name, abbrev) VALUES " +
+                    ["Creo", "Intellego", "Muto", "Perdo", "Rego"].map((name) => (`(${escapeLiteral(name)}, ${escapeLiteral(name.substring(0, 2))})`)).join(",") +
+                    " RETURNING id" +
+                    ") " +
+                    "INSERT INTO techniques(art_id, style_id) SELECT created.id as art_id, styles.id as style_id FROM " +
+                    "created, magicstyles WHERE name='Hermetic'",
+                    // Create hermetic forms by adding them first into arts and then to forms.
+                    /** @todo Replace array of form names with parameter  */
+                    "WITH created as (" +
+                    "INSERT INTO arts(name, abbrev) VALUES " +
+                    ["Animal", "Aquam", "Auram", "Ignem", "Terram"].map((name) => (`(${escapeLiteral(name)}, ${escapeLiteral(name.substring(0, 2))})`)).join(",") +
+                    " RETURNING id" +
+                    ") " +
+                    "INSERT INTO forms(art_id, style_id) SELECT created.id as art_id, styles.id as style_id FROM " +
+                    "created, magicstyles WHERE name='Hermetic'",
+                    // Add guids to created forms.
+                    "INSERT INTO guids(guid, type, id, starttime) " +
+                    "SELECT gen_random_uuid() as guid, 'art.form' as type, art_id::int as id, '0767-01-01' as starttime FROM forms WHERE id NOT IN (SELECT art_id FROM guids)",
+                    // Add guids to created techniques.
+                    "INSERT INTO guids(guid, type, id, starttime) " +
+                    "SELECT gen_random_uuid() as guid, 'art.technique' as type, art_id::int as id, '0767-01-01' as starttime FROM techniques WHERE art_id NOT IN (SELECT id FROM guids)",
                 ]
+
             },
-
-
         ]
     },
     {
         name: "spellguidelines",
-        create: [],
-        delete: [],
+        create: [
+            createTableSql(
+                "spell_guidelines", [
+                "id serial primary key", 
+                "level varchar(10) not null",
+                "style_id smallint NOT NULL",
+                "technique_id smallint NOT NULL",
+                "form_id smallint NOT NULL",
+                "name varchar(255) not null",
+                "description text"
+            ], [
+                "unique (level, style_id, technique_id, form_id, name)",
+                "foreign key (style_id, technique_id) REFERENCES techniques(style_id, art_id) on update cascade on delete cascade",
+                "foreign key (style_id, form_id) REFERENCES forms(style_id, art_id) on update cascade on delete cascade",
+            ]),
+            createViewSql(
+                "guidelinesview",
+                "SELECT " +
+                [
+                    ...["style_id", "form_id", "technique_id", "level", "name", "description"].map(name => (`spell_guidelines.${name}`)),
+                    ...["style", "form"].map(name => (`form.${name}`)),
+                    ...["technique"].map(name => (`technique.${name}`))
+                ].join(", ") + " " +
+                "FROM (" +
+                "public.spell_guidelines JOIN (" +
+                "(" +
+                "SELECT formview.style_id, formview.art_id as form_id, formview.style, formview.art as form " +
+                "FROM public.formview" +
+                ") form JOIN (" +
+                "SELECT techniqueview.style_id, techniqueview.art_id as technique_id, techniqueview.style, techniqueview.art as technique " +
+                "FROM public.techniqueview" +
+                ") technique USING (style_id, style)" +
+                ") USING (style_id, technique_id, form_id)" +
+                ")" +
+                "ORDER BY style, form, technique, level, name"
+            ),
+            createViewSql(
+                "invalid_guidelines",
+                "select distinct level, form_id, technique_id, name, form.style_id as form_style_id, technique.style_id as technique_style_id from " +
+                "(" +
+                "spell_guidelines join formview as form ON spell_guidelines.form_id = form.art_id" +
+                ") JOIN techniqueview as technique ON technique.art_id = technique_id WHERE NOT form.style_id = technique.style_id"
+            )
+        ],
+        delete: ["drop table if exists spell_guidelines cascade"],
         dependency: ["arts"]
+    },
+    {
+        name: "rdts",
+        create: [
+            createTableSql("rdts", [
+                "id serial primary key",
+                "modifier smallint default '0'",
+                "name varchar(80) not null",
+                "type varchar(80)",
+                "description text"
+            ], ["unique(name, type)"]),
+            createTableSql("secondaryRdts",
+                [
+                    "parent_id smallint not null references rdts(id) on update cascade on delete cascade",
+                    "rdt_id smallint not null references rdts(id) on update cascade on delete cascade"
+                ],
+                ["primary key (parent_id, rdt_id), check noSelfRef (not parent_id = rdt_id)"]
+            ),
+            createViewSql("ranges", "select * from rdts where type = 'range' or type like 'range.%' order by modifier, type"),
+            createViewSql("durations", "select * from rdts where type = 'duration' or type like 'duration.%' order by modifier, type"),
+            createViewSql("targets", "select * from rdts where type = 'target' or type like 'target.%' order by modifier, type"),
+            createViewSql(
+                "api_rdts_secondary",
+                "select guids.guid, concat(guids.type, '.', rdts.type) as type, modifier, rdts.name, description, secondaryRdt " +
+                "from (select * from guids where type like 'rdt.%' or type = 'rdt') guids join rdts using(id) left outer " +
+                "JOIN (" +
+                "   SELECT guid as secondaryRdt, parent_id from secondaryrdts JOIN guids on rdt_id = id WHERE guids.type like 'rdt.%'" +
+                ") secondary ON rdts.id = secondary.parent_id"),
+            createViewSql("api_rdts",
+                "("+
+                    // The api_rdts with secondary rdts. 
+                    "select guid, type, modifier, name, description, array_agg(secondaryrdt) as secondaryRDTs "+
+                    "from api_rdts_secondary where secondaryrdt is not null group by guid,type, modifier,name,description "+
+                ") union ("+
+                    // The api_rdts without secondary rdts.
+                    "select guid, type, modifier, name, description, null as secondaryRDTs from api_rdts_secondary where secondaryrdt is null"+
+                ")"
+            ),
+            createViewSql("api_ranges",
+                "select * from api_rdts where type like 'rdt.range.%' or type = 'rdt.range'"
+            ),
+            createViewSql("api_durations",
+                "select * from api_rdts where type like 'rdt.duration.%' or type = 'rdt.duration'"
+            ),
+            createViewSql("api_target",
+                "select * from api_rdts where type like 'rdt.target.%' or type = 'rdt.target'"
+            )        
+        ],
+        delete: [
+            ...["rdts", "secondaryRDTs"].map( (tableName) => (`drop table if exists ${escapeIdentifier(tableName)} cascade`)),
+            ...["ranges", "durations", "targets", "api_rdts_secondary", "api_rdts"].map( (viewName) => (
+                `drop view if exists ${escapeIdentifier(viewName)} cascade`
+            ))
+        ],
+        dependency: [
+            "guids"
+        ]
     },
     {
         name: "spells",
         create: [
-            createTableSql("spellguidelines", [], [])
+            createTableSql("spells", [
+                "guideline_id int references spell_guidelines(id) on update cascade on delete cascade",
+                "id serial", 
+                "level smallint default null"
+            ], ["unique (id, level)"]),
+            createTableSql("spell_ranges", 
+                [
+                    "range_id smallint not null references rdts(id) on update cascade on delete cascade", 
+                    "spell_id int not null references spells(id) on update cascade on delete cascade"
+                ], ["primary key (range_id, spell_id)"])
         ],
-        delete: ["drop table if exists spellguidelines cascade"],
+        delete: ["drop table if exists spells"],
         dependency: [
-            "spellguidelines"
+            "spellguidelines",
+            "rdts",
+            //"tags" -- tags is implemented later.
         ]
     },
 ];
