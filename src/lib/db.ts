@@ -1,37 +1,63 @@
 "use server";
-import { Client, escapeIdentifier, escapeLiteral, Pool, PoolClient, PoolOptions, QueryResult, QueryResultRow } from 'pg';
+import { Client, escapeIdentifier, escapeLiteral, Pool, PoolClient, PoolConfig, PoolOptions, QueryResult, QueryResultRow } from 'pg';
 
 /**
  * The database connection module.
  * @module db
+ */ 
+
+
+/**
+ * The not connected error.
  */
+export const NOT_CONNECTED_ERROR = new Error("Not connected");
 
 /**
  * Get the pool options for the authentication database.
  * @returns The pool options for authentication database.
  */
-export function getAuthDabaseProperties(): Partial<PoolOptions> {
+export function getAuthDatabaseProperties(): Partial<PoolOptions> {
+    if (process.env.AUTH_CONNECT) {
+        return {
+            connectionString: process.env.AUTH_CONNECT
+        }
+    } else {
 
-    return {
-        database: process.env.AUTH_DATABASE,
-        user: process.env.AUTH_USER,
-        host: process.env.AUTH_HOST,
-        port: Number(process.env.AUTH_PORT),
-        password: process.env.AUTH_PASSWORD,
-    };
+        return {
+            database: process.env.AUTH_DATABASE,
+            user: process.env.AUTH_USER,
+            host: process.env.AUTH_HOST,
+            port: Number(process.env.AUTH_PORT ?? "5432"),
+            password: process.env.AUTH_PASSWORD,
+        };
+    }
 }
 
 /**
  * The connection pool for accessing authentication.
  */
-const authPool = new Pool(getAuthDabaseProperties());
+var authPool: Pool | undefined = undefined;
+
+/**
+ * Initialize the authentication pool.
+ * @param config The configuration of the pool.
+ * @returns The promise of the assigned pool. 
+ */
+export function initAuthPool(config: Partial<PoolConfig> = {}): Promise<Pool> {
+    authPool = new Pool({ ...getAuthDatabaseProperties(), ...config });
+    return Promise.resolve(authPool);
+}
 
 /**
  * Create authentication session.
  * @eturns The authentication connection.
  */
 export function createAuthConnection() {
-    return authPool.connect();
+    if (authPool) {
+        return authPool.connect();
+    } else {
+        return Promise.reject(NOT_CONNECTED_ERROR);
+    }
 }
 
 /**
@@ -39,13 +65,37 @@ export function createAuthConnection() {
  * @returns The pool options for api database.
  */
 export function getApiDatabaseProperties(): Partial<PoolOptions> {
-    return {
-        database: process.env.DATA_DATABASE,
-        user: process.env.DATA_USER,
-        host: process.env.DATA_HOST,
-        port: Number(process.env.DATA_PORT),
-        password: process.env.DATA_PASSWORD,
-    };
+    if (process.env.DATA_CONNECT) {
+        return {
+            connectionString: process.env.DATA_CONNECT
+        }
+    } else {
+        return {
+            database: process.env.DATA_DATABASE,
+            user: process.env.DATA_USER,
+            host: process.env.DATA_HOST,
+            port: Number(process.env.DATA_PORT ?? "5432"),
+            password: process.env.DATA_PASSWORD,
+        };
+    }
+}
+
+/**
+ * Create table options.
+ */
+export interface CreateTableOptions extends TableOptions {
+
+    /**
+     * Does the cleanup cascade. 
+     * @default false Cleanup is not cascading restricting cleanup.
+     */
+    cascade?: boolean;
+
+    /**
+     * Does the creation drop the table, if it exists.
+     * @default false No clean creation is performed.
+     */
+    clean?: boolean;
 }
 
 /**
@@ -56,21 +106,82 @@ export function getApiDatabaseProperties(): Partial<PoolOptions> {
  * @param constraints The constraints of the created tables. 
  * @returns The promise of completion. 
  */
-export async function createTable(dbh: PoolClient | Client, tableName: string, fields: string[], constraints: string[] = []) {
+export async function createTable(dbh: PoolClient | Client, tableName: string, fields: string[], constraints: string[] = [], options: CreateTableOptions = {}) {
+    const { existing = true, cascade = false, clean = false } = options;
 
-    return dbh.query("begin").then(
-        async () => {
-            await dbh.query("create table if not exist " + escapeIdentifier(tableName) + "(" +
-                [fields.join(","), constraints.join(",")].join(",")
-                + ")");
-            await dbh.query("commit");
-        }
+    if (clean) {
+        // First lean the table.
+        const groupEnd = console.group("Clean up %s", tableName);
+        await dbh.query("drop table if exists " + escapeIdentifier(tableName) + (cascade ? " cascade" : " restrict")).then(
+            (result) => {
+                console.log("Table %s no longer exists", tableName);
+                return result;
+            },
+            (error) => {
+                console.log("Clean up failed due error %s", error);
+                throw error;
+            }
+        ).finally(() => {
+            console.groupEnd();
+        })
+    }
 
-    ).catch(async err => {
-        await dbh.query("rollback");
-        throw err;
+    console.group("creating table %s", tableName);
+    const queryString = "create table " + (existing ? "if not exists " : "") + escapeIdentifier(tableName) +
+        "(" +
+        [...(fields.length ? fields : []), ...(constraints ? constraints : [])].join(",") +
+        ")";
+    console.log("createTable(%s):%s", tableName, queryString);
+    await dbh.query(queryString).then((result) => {
+        console.log("Success with %d rows", result.rowCount);
+        return result;
+    }, (error) => {
+        console.error("Failure: %s", error);
+        throw error;
+    }
+    ).finally(() => {
+        console.groupEnd();
     });
 }
+
+
+/**
+ * The options for drop table. 
+ */
+export interface TableOptions {
+    /**
+     * The command only affects existing tables ignoring non-existing tables.
+     * @default true The default value is ignore existing tables.
+     */
+    existing?: boolean;
+}
+
+/**
+ * The drop table options. 
+ */
+export interface DropTableOptions extends TableOptions {
+    /**
+     * Delete remove tables and views relying on the curren table.
+     * @default false The default value does not remove tables and views relying on the table.
+     */
+    cascade?: boolean;
+}
+
+/**
+ * Drop table.
+ * @param dbh The database connection.
+ * @param tableName The name of the dropped table.
+ * @param options The options of the dropped table. 
+ * @returns The propmise of completion. 
+ */
+export async function dropTable(dbh: PoolClient | Client, tableName: string, options: DropTableOptions) {
+    const { existing = true, cascade = false } = options;
+    const queryString = "drop table " + (options.existing ? "if exists " : "") + escapeIdentifier(tableName) +
+        (cascade ? " cascade" : "");
+    return dbh.query(queryString);
+}
+
+
 
 /**
  * Authentication database options.
@@ -96,25 +207,14 @@ const defaultAuthDbOptins: Required<AuthDbOptions> = {
 export async function deleteAuthDb(dbh: PoolClient | Client, options: AuthDbOptions = {}): Promise<void> {
     const { clean, populate, userTable, credentialTable, sessionTable } = { ...defaultAuthDbOptins, ...options };
 
-    return dbh.query("begin").then(
-        async () => {
-            if (clean) {
-                // Delete the tables and views associated with them. 
-                await dbh.query("drop table if exists " + [escapeIdentifier(sessionTable), escapeIdentifier(userTable), escapeIdentifier(credentialTable)].join(",") + " cascade")
-            } else {
-                // Just delete the data. 
-                await dbh.query("Trucate " + [escapeIdentifier(sessionTable), escapeIdentifier(userTable), escapeIdentifier(credentialTable)].join(",") + " cascade");
-            }
+    if (clean) {
+        // Delete the tables and views associated with them - the transaction is closed before this operation.
+        await dbh.query("drop table if exists " + [escapeIdentifier(sessionTable), escapeIdentifier(userTable), escapeIdentifier(credentialTable)].join(",") + " cascade")
+    } else {
+        // Just delete the data. 
+        await dbh.query("Trucate " + [escapeIdentifier(sessionTable), escapeIdentifier(userTable), escapeIdentifier(credentialTable)].join(",") + " cascade");
+    }
 
-        }
-    ).then(
-        async () => {
-            await dbh.query("commit");
-        },
-        async () => {
-            await dbh.query("rollback");
-        }
-    )
 }
 
 /**
@@ -136,8 +236,8 @@ export async function createAuthDb(dbh: PoolClient | Client, { clean = false, po
                 console.log("Cleaning up old database");
                 [
                     ["drop table if exists " + escapeIdentifier(userTable) + " cascade", userTable],
-                    ["drop table if exists " + escapeIdentifier(credentialTable), credentialTable],
-                    ["drop table if exists " + escapeIdentifier(sessionTable), sessionTable]
+                    ["drop table if exists " + escapeIdentifier(credentialTable) + " cascade", credentialTable],
+                    ["drop table if exists " + escapeIdentifier(sessionTable) + " cascade", sessionTable]
                 ].forEach(async ([sql, tableName]) => {
                     console.log("Executing: ", sql);
                     result.dropped += (await dbh.query(sql).then(
@@ -206,7 +306,18 @@ export async function createAuthDb(dbh: PoolClient | Client, { clean = false, po
 /**
  * The database pool accessing the API data.
  */
-const apiPool = new Pool(getApiDatabaseProperties());
+var apiPool: Pool | undefined = undefined;
+
+/**
+ * Initialize the API pool.
+ * @param config The configuration of the pool.
+ * @returns The promise of the assigned pool. 
+ */
+export function initApiPool(config: Partial<PoolConfig> = {}): Promise<Pool> {
+    apiPool = new Pool({ ...getApiDatabaseProperties(), ...config });
+    return Promise.resolve(apiPool);
+}
+
 
 /**
  * A API resource.
@@ -450,7 +561,7 @@ function getApiResource(resources: readonly APIResource[], seeked: string | Pred
 /**
  * A sql command.
  */
-interface SqlCommand {
+export interface SqlCommand {
     /**
      * Get the strign representation containing the SQL query.
      */
@@ -461,7 +572,7 @@ interface SqlCommand {
 /**
  * A command for creating a table.
  */
-interface CreateTable extends SqlCommand {
+export interface CreateTable extends SqlCommand {
 
     /**
      * The table name.
@@ -487,7 +598,7 @@ interface CreateTable extends SqlCommand {
 /**
  * Command to create a view.
  */
-interface CreateView extends SqlCommand {
+export interface CreateView extends SqlCommand {
 
     /**
      * The view name.
@@ -512,17 +623,17 @@ interface CreateView extends SqlCommand {
  * @param constraints The constraints of the table.
  * @returns The create table sql.
  */
-function createTableSql(name: string, fields: string[] = [], constraints: string[] = []): CreateTable {
-
+export function createTableSql(name: string, fields: string[] = [], constraints: string[] = [], options: CreateTableOptions={}): CreateTable {
+    const {cascade = false, clean = false, existing = true} = options;
     return {
         tableName: name,
         fields,
         constraints,
         toString() {
-            return "CREATE TABLE IF NOT EXISTS " + escapeIdentifier(this.tableName) + "(" +
+            return "CREATE TABLE " +( existing  ? "IF NOT EXISTS " : "") + escapeIdentifier(this.tableName) + "(" +
                 [
-                    ...this.fields.map((sql) => (sql.toString())).join(", "),
-                    ...this.constraints.map((sql) => (sql.toString())).join(", ")
+                    ...this.fields.map((sql) => (sql.toString())),
+                    ...this.constraints.map((sql) => (sql.toString()))
                 ].join(", ") +
                 ")";
         }
@@ -657,7 +768,7 @@ const apiResources: readonly APIResource[] = [
         create: [
             createTableSql(
                 "spell_guidelines", [
-                "id serial primary key", 
+                "id serial primary key",
                 "level varchar(10) not null",
                 "style_id smallint NOT NULL",
                 "technique_id smallint NOT NULL",
@@ -729,13 +840,13 @@ const apiResources: readonly APIResource[] = [
                 "   SELECT guid as secondaryRdt, parent_id from secondaryrdts JOIN guids on rdt_id = id WHERE guids.type like 'rdt.%'" +
                 ") secondary ON rdts.id = secondary.parent_id"),
             createViewSql("api_rdts",
-                "("+
-                    // The api_rdts with secondary rdts. 
-                    "select guid, type, modifier, name, description, array_agg(secondaryrdt) as secondaryRDTs "+
-                    "from api_rdts_secondary where secondaryrdt is not null group by guid,type, modifier,name,description "+
-                ") union ("+
-                    // The api_rdts without secondary rdts.
-                    "select guid, type, modifier, name, description, null as secondaryRDTs from api_rdts_secondary where secondaryrdt is null"+
+                "(" +
+                // The api_rdts with secondary rdts. 
+                "select guid, type, modifier, name, description, array_agg(secondaryrdt) as secondaryRDTs " +
+                "from api_rdts_secondary where secondaryrdt is not null group by guid,type, modifier,name,description " +
+                ") union (" +
+                // The api_rdts without secondary rdts.
+                "select guid, type, modifier, name, description, null as secondaryRDTs from api_rdts_secondary where secondaryrdt is null" +
                 ")"
             ),
             createViewSql("api_ranges",
@@ -746,11 +857,11 @@ const apiResources: readonly APIResource[] = [
             ),
             createViewSql("api_target",
                 "select * from api_rdts where type like 'rdt.target.%' or type = 'rdt.target'"
-            )        
+            )
         ],
         delete: [
-            ...["rdts", "secondaryRDTs"].map( (tableName) => (`drop table if exists ${escapeIdentifier(tableName)} cascade`)),
-            ...["ranges", "durations", "targets", "api_rdts_secondary", "api_rdts"].map( (viewName) => (
+            ...["rdts", "secondaryRDTs"].map((tableName) => (`drop table if exists ${escapeIdentifier(tableName)} cascade`)),
+            ...["ranges", "durations", "targets", "api_rdts_secondary", "api_rdts"].map((viewName) => (
                 `drop view if exists ${escapeIdentifier(viewName)} cascade`
             ))
         ],
@@ -763,12 +874,12 @@ const apiResources: readonly APIResource[] = [
         create: [
             createTableSql("spells", [
                 "guideline_id int references spell_guidelines(id) on update cascade on delete cascade",
-                "id serial", 
+                "id serial",
                 "level smallint default null"
             ], ["unique (id, level)"]),
-            createTableSql("spell_ranges", 
+            createTableSql("spell_ranges",
                 [
-                    "range_id smallint not null references rdts(id) on update cascade on delete cascade", 
+                    "range_id smallint not null references rdts(id) on update cascade on delete cascade",
                     "spell_id int not null references spells(id) on update cascade on delete cascade"
                 ], ["primary key (range_id, spell_id)"])
         ],
@@ -786,7 +897,11 @@ const apiResources: readonly APIResource[] = [
  * @returns The API connection.
  */
 export function createApiConnection() {
-    return apiPool.connect();
+    if (apiPool) {
+        return apiPool.connect();
+    } else {
+        return Promise.reject("Not initialized");
+    }
 }
 
 /**
@@ -919,7 +1034,6 @@ export async function createTransaction(pool: Pool): Promise<PoolClient> {
         return connection;
     });
 }
-
 /**
  * Perform an api query. 
  * @param sql The SQL of the query.
@@ -930,23 +1044,28 @@ export async function createTransaction(pool: Pool): Promise<PoolClient> {
  */
 export function apiQuery<RESULT extends QueryResultRow = any>(sql: string, params: any[], transaction: PoolClient | undefined = undefined): Promise<QueryResult<RESULT>> {
     return new Promise(async (resolve, reject) => {
-        const dbh = transaction ?? (await createTransaction(apiPool));
-        try {
-            const result: QueryResult<RESULT> = await dbh.query(sql, params);
-            if (!transaction) {
-                await dbh.query("commit");
-                dbh.release();
+        if (apiPool) {
+            const dbh = transaction ?? (await createTransaction(apiPool));
+            try {
+                const result: QueryResult<RESULT> = await dbh.query(sql, params);
+                if (!transaction) {
+                    await dbh.query("commit");
+                    dbh.release();
+                }
+                resolve(result);
+            } catch (error) {
+                await dbh.query("rollback");
+                if (!transaction) {
+                    dbh.release();
+                }
+                reject(error);
             }
-            resolve(result);
-        } catch (error) {
-            await dbh.query("rollback");
-            if (!transaction) {
-                dbh.release();
-            }
-            reject(error);
-        }
 
+        } else {
+            reject(NOT_CONNECTED_ERROR);
+        }
     })
+
 }
 
 
@@ -960,22 +1079,52 @@ export function apiQuery<RESULT extends QueryResultRow = any>(sql: string, param
  */
 export function authQuery<RESULT extends QueryResultRow>(sql: string, params: any[], transaction: PoolClient | undefined = undefined) {
     return new Promise(async (resolve, reject) => {
-        const dbh = transaction ?? (await createTransaction(authPool));
-        try {
-            const result: QueryResult<RESULT> = await dbh.query(sql, params);
-            if (!transaction) {
-                await dbh.query("commit");
+        if (authPool) {
+            const dbh = transaction ?? (await createTransaction(authPool));
+            try {
+                const result: QueryResult<RESULT> = await dbh.query(sql, params);
+                if (!transaction) {
+                    await dbh.query("commit");
+                }
+                resolve(result);
+            } catch (error) {
+                await dbh.query("rollback");
+                reject(error);
+            } finally {
+                if (!transaction) {
+                    dbh.release();
+                }
             }
-            resolve(result);
-        } catch (error) {
-            await dbh.query("rollback");
-            reject(error);
-        } finally {
-            if (!transaction) {
-                dbh.release();
-            }
+        } else {
+            reject("NOT_CONNECTED_ERROR");
         }
-
     })
 
+}
+export const ALL_FIELDS = "*";
+export type ALL_FIELDS = typeof ALL_FIELDS;
+
+export type WhereConstraints = string[];
+export type GroupConstraints = string[];
+export type OrderConstraints = string[];
+export type SelectConstraints = [WhereConstraints?, GroupConstraints?, OrderConstraints?];
+/**
+ * Create select query from a table.
+ * @param dbh
+ * @param tableName
+ * @param fields
+ * @param constriants
+ * @param options
+ * @returns
+ */
+
+export function selectTable(dbh: PoolClient | Client, tableName: string, fields: string[] | ALL_FIELDS, constriants: SelectConstraints, options: TableOptions = {}) {
+
+    let selectSql = "SELECT " + (Array.isArray(fields) ? fields.map((field) => (field.toString())).join(", ") + " " : fields) +
+        "FROM " + escapeIdentifier(tableName) +
+        (constriants[0] ? "WHERE " + constriants[0]?.join(" AND ") + " " : "") +
+        (constriants[1] ? "GROUP BY " + constriants[1]?.map(constraint => escapeIdentifier(constraint))?.join(", ") + " " : "") +
+        (constriants[2] ? "ORDER BY " + constriants[2]?.join(", ") + " " : "");
+
+    return dbh.query(selectSql);
 }
