@@ -2,12 +2,19 @@
 import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
 import { Lucia, TimeSpan } from "lucia";
 import pg, { Connection, PoolClient } from 'pg';
-import { createApiConnection, getAuthDabaseProperties } from "./db";
+import { createApiConnection, getAuthDatabaseProperties } from "./db";
 import { randomBytes, pbkdf2 } from 'node:crypto';
 import { UserInfo } from "./users";
-const pool = new pg.Pool(getAuthDabaseProperties());
+
+const pool = new pg.Pool(getAuthDatabaseProperties());
 const adapter = new NodePostgresAdapter(pool, {
+    /**
+     * The users table name.
+     */
     user: "auth_user",
+    /**
+     * The sessions table name.
+     */
     session: "user_session"
 });
 
@@ -127,7 +134,7 @@ export function validHashedPassword(hashed: string): Promise<boolean> {
      */
 
     // The default test ensures the hashed password is long enough.
-    return Promise.resolve(hashed.length > (128 / 16));
+    return Promise.resolve(/^\p{Hex_Digit}+$/u.test(hashed) && hashed.length > (128 / 16));
 }
 
 /**
@@ -212,7 +219,7 @@ export async function setPassword(userId: string, password: string,
 /**
  * Create a new API session.
  * @param userId The user id.
- * @param apiKey The api key.
+ * @param apiKey The api key token for the session.
  * @returns The promise of session.
  */
 export function createSession(userId: string, apiKey: string) {
