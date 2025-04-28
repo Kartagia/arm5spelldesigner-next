@@ -106,6 +106,41 @@ export type NewCredentials = Omit<Credentials, "id" | "salt">;
 export type NewUserInfo = Omit<UserInfo, "id" | "expired">;
 
 /**
+ * Get user information of all users.
+ * @param transaction The optional transaction, if the operation is part of a transaction.
+ */
+export async function getAllUsers(transaction: PoolClient | undefined = undefined): Promise<UserInfo[]> {
+
+    return (transaction ? Promise.resolve(transaction) : createAuthConnection().then( 
+        async (dbh) => {
+        await dbh.query("begin");
+        return dbh;
+    })).then( 
+        async (dbh) => {
+            const result = await dbh.query<UserInfo>("SELECT id, email, displayName, verified, expires <= NOW() as expired FROM auth_users")
+            .then( 
+                async (result) => {
+                    if (!transaction) {
+                        await dbh.query("commit");
+                        dbh.release();
+                    }
+                    return result;
+
+                },
+                async (error) => {
+                    if (!transaction) {
+                        await dbh.query("rollback");
+                        dbh.release();
+                    }
+                    throw error;
+                }
+            );
+            return result.rows;
+        }
+    )
+}
+
+/**
  * Create a new user.
  * @param details The user details.
  * @param credentials The user credentials.
