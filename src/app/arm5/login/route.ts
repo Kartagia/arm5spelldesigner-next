@@ -18,14 +18,15 @@ import { cookies } from "next/headers";
 export async function GET(request: Request): Promise<Response> {
 
     const cookieStore = await cookies();
-    const sessionId = cookieStore.get("sessionId")?.value;
-    const token = cookieStore.get("api_key");
+    const sessionId = request.headers.get("sessionId");
+    const token = cookieStore.get("api_key") ?? request.headers.get("api_key");
 
     if (sessionId) {
         return await validateSession(sessionId).then(
             ({ userInfo, sessionCookie }) => {
                 return Response.json(userInfo, {
                     status: 200, headers: {
+                        "sessionId": sessionId,
                         "Set-Cookie": sessionCookie.serialize()
                     }
                 })
@@ -69,6 +70,7 @@ export async function POST(request: Request): Promise<Response> {
                                 return createSessionCookie(session.id).then((cookie) => {
                                     resolve(Response.json(userInfo, {
                                         status: 200, headers: {
+                                            "sessionId": session.id,
                                             "Set-Cookie": cookie.serialize()
                                         }
                                     }));
