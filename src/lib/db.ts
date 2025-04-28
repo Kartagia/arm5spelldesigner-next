@@ -33,9 +33,31 @@ export function getAuthDatabaseProperties(): Partial<PoolOptions> {
 }
 
 /**
+ * Get the pool options for the authentication database.
+ * @returns The pool options for authentication database.
+ */
+export function getTestAuthDatabaseProperties(): Partial<PoolOptions> {
+    if (process.env.VITE_AUTH_CONNECT) {
+        return {
+            connectionString: process.env.VITE_AUTH_CONNECT
+        }
+    } else {
+
+        return {
+            database: process.env.VITE_AUTH_DATABASE,
+            user: process.env.VITE_AUTH_USER,
+            host: process.env.VITE_AUTH_HOST,
+            port: Number(process.env.VITE_AUTH_PORT ?? "5432"),
+            password: process.env.VITE_AUTH_PASSWORD,
+        };
+    }
+}
+
+
+/**
  * The connection pool for accessing authentication.
  */
-var authPool: Pool | undefined = undefined;
+var authPool: Pool | undefined = (process.env.NODE_ENV === "test" ? new Pool(getTestAuthDatabaseProperties()): new Pool(getAuthDatabaseProperties()));
 
 /**
  * Initialize the authentication pool.
