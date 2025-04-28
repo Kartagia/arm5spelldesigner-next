@@ -1,6 +1,6 @@
 "use server";
 import { Client, escapeIdentifier, escapeLiteral, Pool, PoolClient, PoolConfig, PoolOptions, QueryResult, QueryResultRow } from 'pg';
-
+export {escapeIdentifier, escapeLiteral} from 'pg';
 /**
  * The database connection module.
  * @module db
