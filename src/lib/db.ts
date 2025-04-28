@@ -1,4 +1,3 @@
-"use server";
 import { Client, escapeIdentifier, escapeLiteral, Pool, PoolClient, PoolConfig, PoolOptions, QueryResult, QueryResultRow } from 'pg';
 export { escapeIdentifier, escapeLiteral } from 'pg';
 /**
