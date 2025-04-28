@@ -1,10 +1,10 @@
 "use server";
 import { Client, escapeIdentifier, escapeLiteral, Pool, PoolClient, PoolConfig, PoolOptions, QueryResult, QueryResultRow } from 'pg';
-export {escapeIdentifier, escapeLiteral} from 'pg';
+export { escapeIdentifier, escapeLiteral } from 'pg';
 /**
  * The database connection module.
  * @module db
- */ 
+ */
 
 
 /**
@@ -194,7 +194,7 @@ export interface AuthDbOptions {
     credentialTable?: string;
 }
 
-const defaultAuthDbOptins: Required<AuthDbOptions> = {
+const defaultAuthDbOptions: Required<AuthDbOptions> = {
     clean: false, populate: false, userTable: "auth_user", credentialTable: "user_credentials",
     sessionTable: "user_session"
 };
@@ -205,7 +205,7 @@ const defaultAuthDbOptins: Required<AuthDbOptions> = {
  * @param options The autehntication database options. 
  */
 export async function deleteAuthDb(dbh: PoolClient | Client, options: AuthDbOptions = {}): Promise<void> {
-    const { clean, populate, userTable, credentialTable, sessionTable } = { ...defaultAuthDbOptins, ...options };
+    const { clean, populate, userTable, credentialTable, sessionTable } = { ...defaultAuthDbOptions, ...options };
 
     if (clean) {
         // Delete the tables and views associated with them - the transaction is closed before this operation.
@@ -623,14 +623,14 @@ export interface CreateView extends SqlCommand {
  * @param constraints The constraints of the table.
  * @returns The create table sql.
  */
-export function createTableSql(name: string, fields: string[] = [], constraints: string[] = [], options: CreateTableOptions={}): CreateTable {
-    const {cascade = false, clean = false, existing = true} = options;
+export function createTableSql(name: string, fields: string[] = [], constraints: string[] = [], options: CreateTableOptions = {}): CreateTable {
+    const { cascade = false, clean = false, existing = true } = options;
     return {
         tableName: name,
         fields,
         constraints,
         toString() {
-            return "CREATE TABLE " +( existing  ? "IF NOT EXISTS " : "") + escapeIdentifier(this.tableName) + "(" +
+            return "CREATE TABLE " + (existing ? "IF NOT EXISTS " : "") + escapeIdentifier(this.tableName) + "(" +
                 [
                     ...this.fields.map((sql) => (sql.toString())),
                     ...this.constraints.map((sql) => (sql.toString()))
@@ -941,30 +941,40 @@ export async function createApiDb(dbh: PoolClient | Client, {
     return dbh.query("begin").then(
         async () => {
             const result = { created: 0, dropped: 0 }
-            if (clean) {
-                console.log("Cleaning up old database");
-                await Promise.all(resources.map(
-                    (resource: APIResource) => {
-                        Promise.all(resource.delete.map((sql) => (dbh.query(sql.toString()))));
+            resources.forEach(
+                async (resource) => {
+                    console.group("Creating resource %s", resource);
+                    try {
+                        if (clean) {
+                            console.log("Cleaning up old database");
+                            await Promise.all(resources.map(
+                                (resource: APIResource) => {
+                                    Promise.all(resource.delete.map((sql) => (dbh.query(sql.toString()))));
+                                }
+                            ));
+                            console.log("Cleaning up completed with " + result.dropped + " tables removed");
+                        }
+                        console.log("Creating new tables");
+                        await Promise.all(
+                            resources.map((resource) => (Promise.all(resource.create.map((sql) => (dbh.query(sql.toString()))))))
+                        );
+                        if (populate) {
+                            // Populate the tables with defaults.
+                            await Promise.all(
+                                resources.map((resource) => (resource.initial ? Promise.all(resource.initial.map(
+                                    (sql) => (dbh.query(sql.toString())))) : Promise.resolve(`Resource ${resource.name} had no initial values`)))
+                            )
+                        }
+                    } finally {
+                        // Close the group. 
+                        console.groupEnd();
                     }
-                ));
-                console.log("Cleaning up completed with " + result.dropped + " tables removed");
-            }
-            console.log("Creating new tables");
-            await Promise.all(
-                resources.map((resource) => (Promise.all(resource.create.map((sql) => (dbh.query(sql.toString()))))))
-            );
-            if (populate) {
-                // Populate the tables with defaults.
-                await Promise.all(
-                    resources.map((resource) => (resource.initial ? Promise.all(resource.initial.map(
-                        (sql) => (dbh.query(sql.toString())))) : Promise.resolve(`Resource ${resource.name} had no initial values`)))
-                )
-            }
+                });
             return Promise.resolve(`Created database: ${result.dropped} dropped, ${result.created} created`)
-        }).catch(err => {
-
-        });
+        }).catch(async err => {
+            await dbh.query("rollback");
+            throw err;
+        })
 }
 
 export async function deleteApiDb(dbh: PoolClient | Client, {
@@ -1101,23 +1111,42 @@ export function authQuery<RESULT extends QueryResultRow>(sql: string, params: an
     })
 
 }
+
+/**
+ * The constraint indicating all fields are listed.
+ */
 export const ALL_FIELDS = "*";
+/**
+ * The type of the all fields. 
+ */
 export type ALL_FIELDS = typeof ALL_FIELDS;
 
+/**
+ * The Where constraints.
+ */
 export type WhereConstraints = string[];
+/**
+ * The group by constraints.
+ */
 export type GroupConstraints = string[];
+/**
+ * The order constraints.
+ */
 export type OrderConstraints = string[];
+
+/**
+ * Select constraints. 
+ */
 export type SelectConstraints = [WhereConstraints?, GroupConstraints?, OrderConstraints?];
 /**
  * Create select query from a table.
- * @param dbh
- * @param tableName
- * @param fields
- * @param constriants
- * @param options
- * @returns
+ * @param dbh The database handle used for operation.
+ * @param tableName The table name. 
+ * @param fields The retrieved field definitions.
+ * @param constriants The constraints of the query.
+ * @param options The table options.
+ * @returns The result of the selection.
  */
-
 export function selectTable(dbh: PoolClient | Client, tableName: string, fields: string[] | ALL_FIELDS, constriants: SelectConstraints, options: TableOptions = {}) {
 
     let selectSql = "SELECT " + (Array.isArray(fields) ? fields.map((field) => (field.toString())).join(", ") + " " : fields) +
