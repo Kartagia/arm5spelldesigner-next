@@ -265,8 +265,23 @@ export async function updateUser(details: Partial<Omit<UserInfo, "expired">>, tr
                 await dbh.query("begin");
                 return dbh;
             })).then(
-                dbh => {
-                    dbh.query("UPDATE auth_user SET expires = NOW + INTERVAL '$1 DAYS' WHERE id=$2", [Math.max(0, config.userExpiration), details.id]);
+                async dbh => {
+                    await dbh.query("UPDATE auth_user SET expires = NOW + INTERVAL '$1 DAYS' WHERE id=$2", [Math.max(0, config.userExpiration), details.id])
+                    .then(
+                        async () => {
+                            if (!transaction) {
+                                await dbh.query("commit");
+                                dbh.release();
+                            }        
+                        },
+                        async (error) => {
+                            if (!transaction) {
+                                await dbh.query("rollback");
+                                dbh.release();
+                            }
+                            throw error;
+                        }
+                    );
                 }
             );
     } else {
@@ -289,12 +304,21 @@ export async function updateUser(details: Partial<Omit<UserInfo, "expired">>, tr
                             (field: keyof UserInfo, index: number) => (`${escapeIdentifier(field)}=$${index + 2}`)
                         ).join(" AND ")} WHERE id=$${fields.length + 2}`, [
                             Math.max(0, config.userExpiration), ...values, details.id
-                        ]);
-                        if (!transaction) {
-                            // Closing transaction.
-                            await dbh.query("commit");
-                            dbh.release();
-                        }
+                        ]).then(
+                            async () => {
+                                if (!transaction) {
+                                    await dbh.query("commit");
+                                    dbh.release();
+                                }        
+                            },
+                            async (error) => {
+                                if (!transaction) {
+                                    await dbh.query("rollback");
+                                    dbh.release();
+                                }
+                                throw error;
+                            }    
+                        )
                         return result;
                     }
                 )
