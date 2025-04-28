@@ -1,5 +1,5 @@
 
-import { createAuthConnection, escapeIdentifier, escapeLiteral } from '@/lib/db';
+import { createAuthConnection, escapeIdentifier } from '@/lib/db';
 import { setPassword, Credentials, validEmail, checkUserPassword } from './auth';
 import { PoolClient } from 'pg';
 import logger = console;
