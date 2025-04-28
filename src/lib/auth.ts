@@ -1,22 +1,7 @@
 
-import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
-import { Lucia, TimeSpan } from "lucia";
-import pg, { Connection, PoolClient } from 'pg';
+import { PoolClient } from 'pg';
 import { createApiConnection, getAuthDatabaseProperties } from "./db";
-import { randomBytes, pbkdf2 } from 'node:crypto';
-import { UserInfo } from "./users";
-
-const pool = new pg.Pool(getAuthDatabaseProperties());
-const adapter = new NodePostgresAdapter(pool, {
-    /**
-     * The users table name.
-     */
-    user: "auth_user",
-    /**
-     * The sessions table name.
-     */
-    session: "user_session"
-});
+import { randomBytes, pbkdf2, timingSafeEqual, randomUUID } from 'node:crypto';
 
 /**
  * The authentication related configuration.
@@ -27,7 +12,7 @@ export interface AuthConfig {
     /**
      * The hashing algorithm iteration count.
      */
-    iterations: number; 
+    iterations: number;
 
     /**
      * The hash key lenght in bytes.
@@ -45,46 +30,13 @@ export interface AuthConfig {
     digest: string;
 }
 
-const config : AuthConfig = {
+const config: AuthConfig = {
     iterations: 100000,
     keyLen: 64,
     saltLen: 20,
     digest: 'sha512'
 }
 
-/**
- * The lucian object used for session management.
- * 
- * ## Custom session attributes:
- * - apiKey of database field api_key: The API key of the session.
- */
-export const lucia = new Lucia(adapter, {
-    sessionExpiresIn: new TimeSpan(1, "d"),
-    getSessionAttributes: (attributes) => {
-        return {
-            apiKey: attributes.api_key
-        }
-    },
-    sessionCookie: {
-
-    }
-});
-
-/**
- * The dyncamid declaration of the lucia module.
- * 
- * ## Custom database session fields:
- * - api_key => varchar: The API key of the session.
- */
-declare module "lucia" {
-    interface Register {
-        Lucia: typeof Lucia;
-        DatabaseSessionAttributes: DatabaseSessionAttributes;
-    }
-    interface DatabaseSessionAttributes {
-        api_key: string;
-    }
-}
 
 /**
  * The authentication module form field name for email.
@@ -112,12 +64,20 @@ export function validEmail(value: string): boolean {
  */
 export class PasswordCompromisedError extends Error {
 
-    constructor(message: string = "Password hash found in the compromised hashes", 
+    constructor(message: string = "Password hash found in the compromised hashes",
         hash: string | undefined = undefined
     ) {
-        super(message, {cause: hash});
+        super(message, { cause: hash });
         this.name = this.constructor.name;
     }
+}
+
+/**
+ * Generate a new API key.
+ * @returns The new API key.
+ */
+export function createApiKey(): Promise<string> {
+    return Promise.resolve(randomUUID().toString());
 }
 
 /**
@@ -135,6 +95,18 @@ export function validHashedPassword(hashed: string): Promise<boolean> {
 
     // The default test ensures the hashed password is long enough.
     return Promise.resolve(/^\p{Hex_Digit}+$/u.test(hashed) && hashed.length > (128 / 16));
+}
+
+/**
+ * Check user password.
+ * @param hashedSecret The hashed secret.
+ * @param password The password given.
+ * @param salt The salt spicing the password.
+ * @returns Promise whether the user password hashses to the hashed secret.
+ */
+export async function checkUserPassword(hashedSecret: string, password: string, salt: string): Promise<boolean> {
+    return (!timingSafeEqual(Buffer.from(hashedSecret, "hex"),
+        Buffer.from(await hashPassword(password, salt), "hex")));
 }
 
 /**
@@ -188,7 +160,7 @@ export async function setPassword(userId: string, password: string,
     transaction: PoolClient | undefined = undefined): Promise<void> {
     return new Promise(async (resolve, reject) => {
         const dbh = transaction ?? (await createApiConnection().then(
-            async conn => {await conn.connect(); return conn},
+            async conn => { await conn.connect(); return conn },
             error => { throw error }));
         try {
             if (!transaction) {
@@ -196,8 +168,8 @@ export async function setPassword(userId: string, password: string,
             }
             const salt = await generateSalt();
             await dbh.query(
-                "insert into user_credentials (id, password, salt) "+
-                "VALUES ($1, $2, $3)", 
+                "insert into user_credentials (id, password, salt) " +
+                "VALUES ($1, $2, $3)",
                 [userId, await hashPassword(password, salt), salt]
             );
             if (!transaction) {
@@ -217,18 +189,8 @@ export async function setPassword(userId: string, password: string,
 
 
 /**
- * Create a new API session.
- * @param userId The user id.
- * @param apiKey The api key token for the session.
- * @returns The promise of session.
- */
-export function createSession(userId: string, apiKey: string) {
-    return lucia.createSession(userId, { api_key: apiKey });
-}
-/**
  * The credentials of the user.
  */
-
 export interface Credentials {
     /**
      * The user id.
