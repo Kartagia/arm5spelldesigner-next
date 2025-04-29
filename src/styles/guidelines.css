@@ -22,6 +22,55 @@
     --color-foreground: var(--secondary);
     --color-primary: var(--primary);
     --color-secondary: var(--secondary);
-    --font-sans: var(--font-geist-sans);
-    --font-mono: var(--font-geist-mono);
+    --font-sans: var(--font-caudex-sans);
+    --font-bold: var(--font-caudex-sans-bold);
+  }
+
+  .title {
+    font: var(--font-bold);
+    font-weight: 700;
+    font-size: xx-large;
+    padding: 0em 0.2em;
+    width: 100%;
+    text-align: center;
+  }
+  .primary {
+    background-color: var(--primary);
+    color: var(--parchment);
+  }
+  .secondary {
+    background-color: var(--secondary);
+    color: var(--parchment);
+  }
+
+  .subtitle {
+    font: var(--font-bold);
+    font-weight: 700;
+    font-style: italic;
+    font-size: x-large;
+    padding: 0em 0.2em;
+    width: 100%;
+    text-align: center;
+  }
+
+  .header, .main, .footer {
+    border: 1px solid var(--foreground);
+    width: 100%;
+  }
+
+  .main {
+    color: var(--foreground);
+    background-color: var(--parchment);
+  }
+
+  .header {
+    background-color: var(--primary);
+    color: var(--parchment);
+    width: 100%;
+  }
+
+  .footer {
+    background-color: var(--secondary);
+    color: var(--parchment);    
+    width: 100%;
   }
