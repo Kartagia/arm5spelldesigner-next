@@ -38,6 +38,12 @@
     width: 100%;
     text-align: center;
   }
+
+  .basic {
+    color: var(--foreground);
+    background-color: var(--background);
+  }
+
   .primary {
     background-color: var(--primary);
     color: var(--parchment);
@@ -89,7 +95,9 @@
   }
 
   .header {
-    flex: 0 1 initial;
+    flex: 1 1 initial;
+    align-items: center;
+    align-content: center;
     background-color: var(--primary);
     color: var(--parchment);
   }
@@ -102,9 +110,11 @@
   }
 
   .footer {
-    flex: 0 1 initial;
+    flex: 1 1 initial;
+    margin-right: auto;
     background-color: var(--secondary);
     color: var(--parchment);
+    min-height: 30px;
   }
 
   .flex.column > .header, .flex.column > .footer {

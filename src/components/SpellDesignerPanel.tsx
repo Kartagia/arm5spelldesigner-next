@@ -143,12 +143,12 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
         }
     };
 
-    return <div>
+    return <div className={styles.noHScroll}>
         <header className="header main"></header>
-        <main className="Main">
+        <main className={"Main " + styles.noHScroll}>
             <span className="LeftView">
                 <header className="header">Spell List</header>
-                <main className="main">{spells.map( spell => (<SpellTitle selected={spell === selected} model={spell} key={getSpellKey(spell)} onClick={ (e) => {
+                <main className="main column scroll">{spells.map( spell => (<SpellTitle selected={spell === selected} model={spell} key={getSpellKey(spell)} onClick={ (e) => {
                     if (selected === spell) {
                         setSelected(undefined);
                     } else {
@@ -157,7 +157,7 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
                 }
             } />)) 
                 }</main>
-                <footer className="footer flex">
+                <footer className={"footer flex row " + styles.noHScroll}>
                 <button className="flex-item" disabled={!selected} onClick={ () => {
                     /**
                      * @todo Confirm dialog.
@@ -177,9 +177,9 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
                 </button>
                 </footer>
             </span>
-            <span className="MainView">
+            <span className="MainView no scroll">
                 <header className="header">{selected ? "Spell Editor" : "Spell Designer"}</header>
-                <main className="main">
+                <main className="main flex column scroll">
                         {selected ? (
                             <SpellEditorComponent defaultValue={selected} forms={props.forms} techniques={props.techniques} allRDTs={props.rdts}
                             onConfirm={

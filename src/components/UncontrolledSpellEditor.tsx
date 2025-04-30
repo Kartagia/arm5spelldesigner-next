@@ -1,12 +1,14 @@
 "use client";
 
-import { MouseEventHandler, useEffect, useState } from "react";
+import { MouseEventHandler, RefObject, useEffect, useRef, useState } from "react";
 import { SpellEditorProperties, SpellEditorEvents } from './SpellEditor';
 import { ArtModel, GuidelineModel, NewSpellModel, SpellModel } from '@/lib/spells';
 import { SelectGuideline } from "./SelectGuideline";
 import { SelectArts } from "./SelectArts";
 import { validUUID } from "@/lib/modifiers";
+import styles from "./UncotrolledSpellEditor.module.css";
 import { format } from "path";
+import { AutoTextArea } from "react-textarea-auto-witdth-height";
 
 /**
  * Log a message along with a function.
@@ -115,6 +117,7 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
             console.log("Descrioption %s and %s", newSpell.description ?? "[NO DESCRIPTION]", description ?? "[NO DESCRIPTION]")
         }
     }, [props])
+
 
     const handleFormChange = (newValue: ArtModel|string) => {
         if (!Object.is(form, newValue)) {
@@ -227,15 +230,19 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
         </div>
         <div className="form-field">
             <label>Level</label>
-        <SelectLevel onSelect={ (newLevel) => {setSpell({...spell, level: newLevel}); setLevel} } value={level} />
+        <SelectLevel onSelect={ (newLevel) => {setSpell({...spell, level: newLevel}); setLevel(newLevel)} } value={level} />
         </div>
-            <div className="form-field">
-                <label>Description</label>
-        <textarea name="description" onChange={ (e) => {
+            <div className="form-field flex column">
+                <label className="HFill">Description</label>
+
+            <div className={styles.HFill} >
+            
+        <textarea name={"description HFill"} cols={80} rows={6} className="basic" onChange={ (e) => {
             console.log("Changing desc \"%s\" to \"%s\"", description, e.target.value);
             handleDescriptionChange( e.target.value.length === 0 ? undefined : e.target.value);
         }} value={description ?? ""} placeholder={"Enter spell descripton here"}>
         </textarea>
+        </div>
         </div>
         </main>
         <footer className="footer">

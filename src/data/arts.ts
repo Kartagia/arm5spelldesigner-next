@@ -10,27 +10,17 @@ export async function getAllArts(): Promise<ArtModel[]> {
     try {
         dbh = await pool.connect();
         console.log("Connection established");
+        const result = await dbh.query<ArtModel>(
+            "select guid, abbrev, art, artsview.type as type from (select * from guids where type like 'art.%') as guid join artsview on id = art_id;"
+            );
+        console.log("Loaded %d arts", result.rowCount);
+        return result.rows;
     } finally {
         () => {
             dbh?.release();
             console.log("Connection released");
         }
     }
-    if (dbh) {
-        dbh.release();
-        console.log("Second release");
-    }
-
-    return await createApiConnection().then(
-        async dbh => {
-            const result = await dbh.query<ArtModel>(
-                "select guid, abbrev, art, artsview.type as type from (select * from guids where type like 'art.%') as guid join artsview on id = art_id;"
-                );
-            console.log("Loaded %d arts", result.rowCount);
-            return [...result.rows];
-        }
-    );
-
 }
 
 export async function getAllForms(): Promise<ArtModel[]> {

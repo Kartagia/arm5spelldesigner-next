@@ -33,9 +33,9 @@ export default function SpellsPage() {
 
 
     return (
-        <section className="primary">
+        <section className="primary min-h-100">
             <header className="title primary">Spells</header>
-            <main className="main">
+            <main className="main column scroll">
                 <Suspense fallback="Loading...">
                     <SpellDesignerWrapper />
                 </Suspense>
