@@ -98,6 +98,7 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
     const [level, setLevel] = useState(spell.level);
     const [form, setForm] = useState(spell.form);
     const [technique, setTechnique] = useState(spell.technique);
+    const [description, setDescription] = useState(spell.description);
     const [newSpellName, setNewSpellName] = useState("");
     useEffect(() => {
         console.log("Check if important properties has changed");
@@ -109,7 +110,9 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
             setTechnique(newSpell.technique);
             setForm(newSpell.form);
             setLevel(newSpell.level);
+            setDescription(newSpell.description);
             setNewSpellName("");
+            console.log("Descrioption %s and %s", newSpell.description ?? "[NO DESCRIPTION]", description ?? "[NO DESCRIPTION]")
         }
     }, [props])
 
@@ -169,7 +172,8 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
                 technique: spell.technique,
                 form: spell.form, 
                 level: spell.level,
-                traits: spell.traits
+                traits: spell.traits,
+                description: spell.description
             };
         } else {
             return undefined;
@@ -198,11 +202,13 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
         setNewSpellName("");
     };
 
-    const setDescription = ( newDesc: string|undefined) => {
+    const handleDescriptionChange = ( newDesc: string|undefined) => {
         if (spell) {
             setSpell({...spell, description: newDesc});
+            setDescription(newDesc);
         }
     }
+
 
     return (<section className="flex column scroll">
         <header className="header">{spell.name ? spell.name : <input name="name" placeholder="New Spell" onChange={
@@ -226,8 +232,9 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
             <div className="form-field">
                 <label>Description</label>
         <textarea name="description" onChange={ (e) => {
-            setDescription( e.target.value.trim() == "" ? undefined : e.target.value.trim());
-        }} value={spell?.description} placeholder={"Enter spell descripton here"}>
+            console.log("Changing desc \"%s\" to \"%s\"", description, e.target.value);
+            handleDescriptionChange( e.target.value.length === 0 ? undefined : e.target.value);
+        }} value={description ?? ""} placeholder={"Enter spell descripton here"}>
         </textarea>
         </div>
         </main>
@@ -238,12 +245,18 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
                 setLevel(defaultSpell?.level);
                 setTechnique(defaultSpell?.technique);
                 setForm(defaultSpell?.form);
+                setDescription(defaultSpell?.description);
             }}>{"Cancel changes"}</button>
             {props.defaultValue ? <button className="flex-item" name="close" onClick={() => {
                 if (props.onCancel) {
                     props.onCancel();
                 }
-                setSpell(createNewSpell());
+                const newSpell = createNewSpell();
+                setSpell(newSpell);
+                setLevel(newSpell.level);
+                setTechnique(newSpell.technique);
+                setForm(newSpell.form);
+                setDescription(newSpell.description ?? "");
                 setNewSpellName("");
             }} >Close</button> : null}
         </footer>

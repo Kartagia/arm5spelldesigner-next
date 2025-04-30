@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { RDT } from "./modifiers";
 
 export interface SpellModel {
 
@@ -33,6 +34,19 @@ export interface SpellModel {
 
 
     /**
+     * The Ranges of the spell. 
+     */
+    range?: RDT<"Range">[];
+    /**
+      * The Durations of the spell. 
+      */
+    duration?: RDT<"Duration">[];
+    /**
+      * The Targets of the spell. 
+      */
+    target?: RDT<"Target">[];
+
+    /**
      * The traits of the spell. 
      */
     traits?: string[];
@@ -53,12 +67,12 @@ export type NewSpellModel = Omit<SpellModel, "guid">;
  * @param value The level value.
  * @returns The string of level key. 
  */
-function zeroFill( value: number|"Generic"): string {
+function zeroFill(value: number | "Generic"): string {
     if (typeof value === "number") {
         const candidate = `${Math.abs(value)}`;
-        return (value < 0 ? "-" : "_" ) + "0".repeat(3 - candidate.length) + candidate;
+        return (value < 0 ? "-" : "_") + "0".repeat(3 - candidate.length) + candidate;
     } else {
-        return "+" + value.substring(0,3);
+        return "+" + value.substring(0, 3);
     }
 }
 
@@ -68,7 +82,7 @@ function zeroFill( value: number|"Generic"): string {
  * @param trait The sought trait.
  * @returns True, if and only if the spell has given trait.
  */
-export function hasTrait(spell: SpellModel|NewSpellModel, trait: string) {
+export function hasTrait(spell: SpellModel | NewSpellModel, trait: string) {
     return (spell.traits && spell.traits.includes(trait));
 }
 
@@ -77,7 +91,7 @@ export function hasTrait(spell: SpellModel|NewSpellModel, trait: string) {
  * @param spell The spell. 
  */
 export function getSpellSortKey(spell: SpellModel): string {
-    return `${spell.form}${spell.technique}${ (hasTrait(spell, "General") && (Number.isInteger(spell.level) ? " " : " ")) +  zeroFill(spell.level)}${spell.name}`;
+    return `${spell.form}${spell.technique}${(hasTrait(spell, "General") && (Number.isInteger(spell.level) ? " " : " ")) + zeroFill(spell.level)}${spell.name}`;
 }
 
 /**

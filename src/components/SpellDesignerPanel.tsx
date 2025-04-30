@@ -7,6 +7,7 @@ import { UUID } from "crypto";
 import { MouseEventHandler, useState } from "react";
 import SpellEditorComponent from "./SpellEditor";
 
+import { saveSpells } from '@/actions/spells.actions';
 
 
 /**
@@ -18,7 +19,15 @@ export interface SpellDesignerEvents {
      * The new save change handler.
      * @param spells The updated spells list.
      */
-    onSaveChanges?: ((spells: (SpellModel|NewSpellModel)[], alteredGuids?: UUID[]) => void)|((spells: (SpellModel|NewSpellModel)[], alteredGuids?: UUID[]) => Promise<void>);
+    onSaveChanges?: ((spells: (SpellModel|NewSpellModel)[], alteredGuids?: UUID[]) => void);
+
+    /**
+     * Action handling saving of the component.
+     * @param spells Teh spells saved.
+     * @param alteredGuids The form element
+     * @returns 
+     */
+    saveChangesAction?: (spells: (SpellModel|NewSpellModel)[], alteredGuids?: UUID[]) => Promise<void>
 }
 
 /**
@@ -77,6 +86,8 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
     const [unsaved, setUnsaved] = useState<boolean>(false);
     const [unsavedGuids, setUnsaveGuids] = useState([] as UUID[]);
 
+    
+
     /**
      * Handle update of a spell. 
      * @param key The key of the spell.
@@ -117,7 +128,8 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
         setUnsaved(true);
     }
 
-    function saveChangesAction() {
+    const saveChangesAction = async function (spells: SpellModel[], unsavedGuids: UUID[]|undefined) {
+        await saveSpells(spells, unsavedGuids);
         if (props.onSaveChanges) {
             props.onSaveChanges(spells, unsavedGuids);
             setUnsaveGuids([]);
@@ -129,7 +141,7 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
             setUnsaved(false);
             console.log("State saved");
         }
-    }
+    };
 
     return <div>
         <header className="header main"></header>
@@ -188,7 +200,10 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
             </span>
         </main>
         <footer className={"footer flex"}>
-                    <button className="flex-item-1" disabled={!unsaved} onClick={() => {saveChangesAction()}} >Save changes</button>
+                    <button className="flex-item-1" disabled={!unsaved} onClick={
+                        async () => {
+                        await saveChangesAction(spells, unsavedGuids)
+                        }} >Save changes</button>
                     <button className="flex-item-1" disabled={!unsaved} onClick={ 
                         (e) => {
                         setSpells(defaultSpells);

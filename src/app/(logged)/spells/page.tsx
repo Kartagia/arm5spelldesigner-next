@@ -1,8 +1,11 @@
-import { getAllGuidelines, getAllSpells } from "@/lib/spells";
+import { getAllGuidelines, SpellModel } from "@/lib/spells";
 import { getAllRDTs } from "@/data/rdts";
 import { getAllArts, getAllForms, getAllTechniques } from "@/data/arts";
 import { Suspense } from "react";
 import { SpellDesignerPanel } from "@/components/SpellDesignerPanel";
+import { getAllSpells, storeSpells } from "@/data/spells";
+import { UUID } from "crypto";
+
 
 
 /**
@@ -16,7 +19,9 @@ async function SpellDesignerWrapper() {
     const allRDTs = await getAllRDTs();
     const spells = await getAllSpells();
 
-    return (<SpellDesignerPanel spells={spells} rdts={allRDTs} forms={forms} techniques={techniques} guidelines={guidelines}/>)
+
+
+    return (<SpellDesignerPanel spells={spells} rdts={allRDTs} forms={forms} techniques={techniques} guidelines={guidelines} />)
 }
 
 
