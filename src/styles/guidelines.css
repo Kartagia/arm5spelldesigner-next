@@ -94,7 +94,12 @@
     color: var(--parchment);
   }
 
-
+  .column.scroll {
+    overflow-y: scroll;
+  }
+  .row.scroll {
+    overflow-x: scroll;
+  }
 
   .footer {
     flex: 0 1 initial;
@@ -109,6 +114,23 @@
 
   .flex.row > .header, .flex.row > .footer {
     height: 100%;
+  }
+
+
+  .flex-item {
+    flex: 1 1 auto;
+    padding: 0 2em;
+    margin: 0 1em;
+  }
+
+  .flex-item-1 {
+    flex: 1 1 auto;
+    margin: 0 6em;
+  }
+
+  .border {
+    border: 1px solid;
+    border-radius: 5px;
   }
 
   .disabled, :disabled {
