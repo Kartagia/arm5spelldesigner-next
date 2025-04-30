@@ -32,17 +32,18 @@ export default function SignupPage() {
     return (
     <form action={action}>
         <div>
-            <header></header>
-            <main>
+            <header className="header"><h1 className="title">Create a new account</h1></header>
+            <main className="main">
             {
-                fields.map( field => (<div key={field.name}>
+                fields.map( field => (<div key={field.name}><div key={field.name} className="form-field">
                     <label htmlFor={`${id}:${field.name}`}>{field.label}</label>
-                    <input name={field.name} id={`${id}:${field.name}`} type={field.type}></input>
-                    {state?.errors?.[field.name] && (<p className="error">{state.errors[field.name]}</p>)}
-                </div>))
+                    <input name={field.name} id={`${id}:${field.name}`} type={field.type} defaultValue={state?.values?.[field.name] ?? ""}></input>
+                </div>
+                {state?.errors?.[field.name] && (<div className="error form-field"><ul>{state.errors[field.name].map( error => (<li key={error}>{error}</li>))}</ul></div>)}</div>
+            ))
             }
             </main>
-            <footer>
+            <footer className="footer">
                 <button disabled={pending} type="submit">Create account</button>
             </footer>
         </div>
