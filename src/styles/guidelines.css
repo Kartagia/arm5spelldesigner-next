@@ -1,0 +1,201 @@
+:root {
+    --foreground: #171717;
+    --disabled: #505050;
+    --primary: #a80000;
+    --secondary: #171750;
+    --parchment: #fcf5e5;
+    --error: red;
+  }
+  
+  @media (prefers-color-scheme: light) {
+    :root {
+      --foreground: #fcf5e5;
+      --primary: #a80000;
+      --secondary: #171750;
+      --parchment: #171717;
+    }
+  }
+  
+  @theme inline {
+    --primaryText: var(--parchment);
+    --secondaryText: var(--parchment);
+    --primary-disabled: var(--disabled);
+    --secondary-disabled: var(--disabled);
+    --background: var(--parchment);
+    --color-background: var(--background);
+    --color-foreground: var(--secondary);
+    --color-primary: var(--primary);
+    --color-secondary: var(--secondary);
+    --font-sans: var(--font-caudex-sans);
+    --font-bold: var(--font-caudex-sans-bold);
+  }
+
+  .title {
+    font: var(--font-bold);
+    font-weight: 700;
+    font-size: xx-large;
+    padding: 0em 0.2em;
+    width: 100%;
+    text-align: center;
+  }
+
+  .basic {
+    color: var(--foreground);
+    background-color: var(--background);
+  }
+
+  .primary {
+    background-color: var(--primary);
+    color: var(--parchment);
+  }
+  .secondary {
+    background-color: var(--secondary);
+    color: var(--parchment);
+  }
+
+  .subtitle {
+    font: var(--font-bold);
+    font-weight: 700;
+    font-style: italic;
+    font-size: x-large;
+    padding: 0em 0.2em;
+    width: 100%;
+    text-align: center;
+  }
+
+  .flex {
+    display: flex;
+  }
+
+  .flex.column {
+    flex-direction: column;
+    overflow-y: scroll;
+    overflow-x: hide;
+    align-items: stretch;
+    height: 100%;
+  }
+
+  .flex.row {
+    flex-direction: row;
+    align-items: stretch;
+    overflow-x: scroll;
+    overflow-y: hide;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .header, .main, .footer {
+    border: 1px solid var(--foreground);
+  }
+
+  .main {
+    flex: 1 1 auto;
+    color: var(--foreground);
+    background-color: var(--parchment);
+  }
+
+  .header {
+    flex: 1 1 initial;
+    align-items: center;
+    align-content: center;
+    background-color: var(--primary);
+    color: var(--parchment);
+  }
+
+  .column.scroll {
+    overflow-y: scroll;
+  }
+  .row.scroll {
+    overflow-x: scroll;
+  }
+
+  .footer {
+    flex: 1 1 initial;
+    margin-right: auto;
+    background-color: var(--secondary);
+    color: var(--parchment);
+    min-height: 30px;
+  }
+
+  .flex.column > .header, .flex.column > .footer {
+    width: 100%;
+  }
+
+
+  .flex.row > .header, .flex.row > .footer {
+    height: 100%;
+  }
+
+
+  .flex-item {
+    flex: 1 1 auto;
+    padding: 0 2em;
+    margin: 0 1em;
+  }
+
+  .flex-item-1 {
+    flex: 1 1 auto;
+    margin: 0 6em;
+  }
+
+  .border {
+    border: 1px solid;
+    border-radius: 5px;
+  }
+
+  .disabled, :disabled {
+    color: var(--disabled);
+  }
+
+  .disabled.primary, .primary:disabled {
+    color: var(--primary-disabled)
+  }
+
+  .disabled.secondary, .secondary:disabled {
+    color: var(--secondary-disabled)
+  }
+
+  .error {
+    color: var(--error);
+  }
+
+  div.form-field {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    margin: 5px 10px;
+    padding: 2px 10px;
+    border: 1px solid;
+    border-radius: 5px;
+  }
+
+  .form-field .error {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    margin: 5px 10px;
+    padding: 2px 10px;
+    border: 0px solid;
+    border-radius: 5px;
+  }
+
+  div.form-field > label, div.form-field > input {
+    width: 100%;
+    padding: 5px;
+    border-radius: 5px;
+  }
+
+  label, .label {
+    padding-right: 0.2em;
+  }
+
+  input, .input {
+    padding-left: 0.2em;
+  }
+
+  button, .button {
+    border-width: 1px;
+    border-radius: 5px;
+    padding: 0.1em 0.2em;
+    margin: 0.1em 0.2em;
+  }

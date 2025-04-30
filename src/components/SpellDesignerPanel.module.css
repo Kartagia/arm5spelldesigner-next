@@ -1,0 +1,25 @@
+.item {
+
+    flex-wrap: wrap;
+    overflow-x:auto;
+    border: solid 1px var(--color-foreground);
+    background-color: var(--color-background);
+    color: var(--color-foregrond);
+}
+
+.selectedItem {
+    flex-wrap: wrap;
+    overflow-x:auto;
+    border: solid 1px var(--color-secondary);
+    background-color: var(--color-foreground);
+    color: var(--color-background);
+}
+
+.noHScroll {
+    overflow-x: hidden;
+    max-width: 100%;
+}
+
+.HStretch {
+    min-height: 100%;
+}

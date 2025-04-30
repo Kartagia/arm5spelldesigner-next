@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Caudex } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+const caudexSans = Caudex({
+  weight: "400",
+  subsets: ["latin", "greek"],
+  variable: "--font-sans"
+})
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const caudexSansBold = Caudex({
+  weight: "700",
+  subsets: ["latin", "greek"],
+  variable: "--font-sans-bold"
+})
+
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -25,7 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${caudexSans.variable} ${caudexSansBold.variable} antialiased`}
       >
         {children}
       </body>
