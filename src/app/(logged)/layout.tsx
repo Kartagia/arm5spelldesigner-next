@@ -1,9 +1,4 @@
-import { updateSessionAction } from "@/actions/auth.actions";
-import { validateSession } from "@/lib/session";
 import { Metadata } from "next";
-import { cookies, headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { startTransition } from "react";
 
 export const metadata: Metadata = {
     title: "Ars Magica Campaign Aid (Logged in)",
