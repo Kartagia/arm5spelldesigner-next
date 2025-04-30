@@ -5,6 +5,10 @@ import { Suspense } from "react";
 import { SpellDesignerPanel } from "@/components/SpellDesignerPanel";
 
 
+/**
+ * Wrapper for spell designer to load the data the component needs.
+ * @returns 
+ */
 async function SpellDesignerWrapper() {
     const forms = await getAllForms();
     const techniques = await getAllTechniques();
@@ -12,11 +16,7 @@ async function SpellDesignerWrapper() {
     const allRDTs = await getAllRDTs();
     const spells = await getAllSpells();
 
-    console.table({
-        forms, techniques
-    })
-
-    return (<SpellDesignerPanel spells={spells} rdts={[]} forms={forms} techniques={techniques} guidelines={guidelines}/>)
+    return (<SpellDesignerPanel spells={spells} rdts={allRDTs} forms={forms} techniques={techniques} guidelines={guidelines}/>)
 }
 
 
