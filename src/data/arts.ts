@@ -40,7 +40,7 @@ export async function getAllForms(): Promise<ArtModel[]> {
             return result;
         }, 
         (error) => {
-            console.debug("Loaded %d forms");
+            console.debug("Loaded %d forms", 0);
             throw error;
         }
     )
@@ -53,7 +53,7 @@ export async function getAllTechniques(): Promise<ArtModel[]> {
             return result;
         }, 
         (error) => {
-            console.debug("Loaded %d techniques");
+            console.debug("Loaded %d techniques", 0);
             throw error;
         }
     )
