@@ -69,7 +69,6 @@ export async function login(previousState: LoginFormState, formData: FormData) {
         password: formData.get(PasswordField)
     });
     if (validatedFields.success) {
-        console.table(validatedFields.data);
         const user = await loginUser(validatedFields.data.email, validatedFields.data.password);
         console.log("Got user information for user %s: %s", user.id, user.email);
         const session = await createSession(user.id, await createApiKey()).then(

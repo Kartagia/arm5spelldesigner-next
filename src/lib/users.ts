@@ -164,7 +164,6 @@ export async function createUser(details: NewUserInfo, credentials: NewCredentia
                 /**
                  * @todo Remove debug output
                  */
-                console.table({ id, email: details.email, displayName: details.displayName || null, verified: details.verified ?? false, intervalAmount });
                 await dbh.query("insert into auth_user (id, email, expires) values ($1, $2, NOW() + INTERVAL " + intervalAmount + ")",
                     [
                         id, details.email, // details.displayName || null, details.verified ?? false
