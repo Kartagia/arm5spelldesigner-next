@@ -1,28 +1,34 @@
 "use server";
 
-import { EmailField, PasswordField, validEmail, validPassword } from "@/lib/auth";
-import { ErrorStruct, SignupFormSchema, SignupFormState } from "@/lib/definitions";
-import { createUser } from "@/lib/users";
+import { createApiKey, EmailField, PasswordField, validEmail, validPassword } from "@/lib/auth";
+import { ErrorStruct, SignupFormSchema, SignupFormState, LoginFormState, LoginFormSchema } from "@/lib/definitions";
+import { createSession, createSessionCookie, validateSession } from "@/lib/session";
+import { createUser, loginUser } from "@/lib/users";
+import { Cookie } from "lucia";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-
+export async function updateSessionAction(sessionCookie: Cookie) {
+    (await cookies()).set(sessionCookie);
+}
 
 /**
  * Signup action signing up to the system.
  * @param formData The signup form contents.
  */
-export async function signup(previousState:  SignupFormState, formData: FormData) {
-
-    const validatedFields = SignupFormSchema.safeParse({
+export async function signup(previousState: SignupFormState, formData: FormData) {
+    const values = {
         email: formData.get(EmailField),
         password: formData.get(PasswordField),
         confirmPassword: formData.get("confirmPassword"),
         displayName: formData.get("displayName")
-    });
+    };
+    const validatedFields = SignupFormSchema.safeParse(values);
     if (!validatedFields.success) {
         console.log("Creating account with %d invalid fields", Object.keys(validatedFields.error.flatten().fieldErrors).length);
         return {
-            errors: {...validatedFields.error.flatten().fieldErrors} as Record<string, string[]>,
+            values: { ...values } as Record<string, string>,
+            errors: { ...validatedFields.error.flatten().fieldErrors } as Record<string, string[]>,
             origin: previousState?.origin?.toString()
         };
     } else {
@@ -34,13 +40,14 @@ export async function signup(previousState:  SignupFormState, formData: FormData
      * F00barhautakarastaavarakaskasta!
      */
     console.log("Creating account %s", validatedFields.data.email);
-    createUser({email: validatedFields.data.email, displayName: validatedFields.data.displayName}, {password: validatedFields.data.password}).then(
+    createUser({ email: validatedFields.data.email, displayName: validatedFields.data.displayName }, { password: validatedFields.data.password }).then(
         (userId) => {
             console.log("Created user[%s]: %s, %s", userId, validatedFields.data.email, validatedFields.data.displayName);
-        }, 
+        },
         (error) => {
             console.error("Creating user %s failed due %s.", validatedFields.data.email, error.message);
             return {
+                values,
                 errors: {
                     "general": "Could not create user."
                 }
@@ -53,22 +60,41 @@ export async function signup(previousState:  SignupFormState, formData: FormData
  * Login action. 
  * @param formData The login form contents.
  */
-export async function login(previousState: {errors?: ErrorStruct, origin?:string}, formData:FormData) {
+export async function login(previousState: LoginFormState, formData: FormData) {
     const email = formData.get(EmailField);
     const password = formData.get(PasswordField);
 
-    var errors : ErrorStruct = {
-    };
-
-    if (Object.keys(errors).length > 0) {
-        return {...previousState, errors};
+    const validatedFields = LoginFormSchema.safeParse({
+        email: formData.get(EmailField),
+        password: formData.get(PasswordField)
+    });
+    if (validatedFields.success) {
+        console.table(validatedFields.data);
+        const user = await loginUser(validatedFields.data.email, validatedFields.data.password);
+        console.log("Got user information for user %s: %s", user.id, user.email);
+        const session = await createSession(user.id, await createApiKey()).then(
+            (result) => {
+                console.log("Got session with id %s", result.id);
+                return result;
+            }, 
+            (error) => {
+                console.error("Did not get session");
+                throw error;
+            }
+        );
+        console.log("Got session")
+        const cookie = await createSessionCookie(session.id);
+        (await cookies()).set(cookie);
+        console.log("Cookies added");
     } else {
-        /**
-         * @todo Perform creation of a session.
-         */
-
-        // Redirect. 
-        redirect(previousState?.origin ?? "/");
+        // Failed.
+        return {
+            values: { email: formData.get(EmailField) },
+            errors: validatedFields.error.flatten().fieldErrors
+        }
     }
+
+    // Redirect. 
+    redirect(previousState?.origin ?? "/");
 
 }

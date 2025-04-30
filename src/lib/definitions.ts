@@ -28,7 +28,7 @@ export const SignupFormSchema = z.object({
 /**
  * The schema for edit form validation with zod.
  */
-const EditFormSchema = z.object({
+export const EditFormSchema = z.object({
     email: z.optional(z.string().email({ message: 'Please, enter a valid email.' }).trim()),
     password: z.optional(z.string().min(14, { message: 'Be at least 14 characters long.' })
         .regex(/\p{Lu}/u, { message: "Contain at least one upper case letter." })
@@ -45,13 +45,9 @@ const EditFormSchema = z.object({
 /**
  * The schema for login form validation with zod.
  */
-const LoginFormSchema = z.object({
+export const LoginFormSchema = z.object({
     email: z.string().email({ message: 'Please, enter a valid email.' }).trim(),
-    password: z.string().min(14, { message: 'Be at least 14 characters long.' })
-        .regex(/\p{Lu}/u, { message: "Contain at least one upper case letter." })
-        .regex(/\p{N}/u, { message: "Contain at least one digit." })
-        .regex(/^\P{Cc}+$/u, { message: "Cannot contain control characters." })
-        .regex(/[^\p{N}a-zA-Z]/u, { message: "Contain at least one special character." }).trim(),
+    password: z.string().trim(),
 });
 
 /**
@@ -65,9 +61,20 @@ export type ErrorType<TYPE> = {
  * The sign up form state.
  */
 export type SignupFormState = {
-    errors: ErrorType<{name?: string, password?: string, confirmPassword?: string, displayName?: string}>,
-    origin?: string
+    values?: Record<"email"|"password"|"confirmPassword"|"displayName", string>,
+    errors?: ErrorType<{name?: string, password?: string, confirmPassword?: string, displayName?: string}>,
+    origin?: string,
 } | undefined;
+
+/**
+ * The login form state.
+ */
+export type LoginFormState = {
+    values?: Record<"email"|"password", string>,
+    errors?: ErrorType<{email?: string, password?: string, generic?: string}>,
+    origin?: string,
+} | undefined;
+
 
 /**
  * The actions related to the authentication.
