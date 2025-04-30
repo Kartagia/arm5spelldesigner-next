@@ -145,7 +145,25 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
                 }
             } />)) 
                 }</main>
-                <footer className="footer">Actions</footer>
+                <footer className="footer">
+                <button disabled={!selected} onClick={ () => {
+                    /**
+                     * @todo Confirm dialog.
+                     */
+
+                    if (validUUID(selected?.guid)) {
+                        const selectedUUID = checkUUID(selected?.guid);
+                        if (!unsavedGuids.includes(selectedUUID)) {
+                            setUnsaveGuids( uuids => ([...uuids, selectedUUID]))
+                        }
+                    }
+                    setSpells( current => (current.filter( (spell) => (spell !== selected))));
+                    setSelected(undefined);
+                    setUnsaved(true);
+                }}>
+                    Delete
+                </button>
+                </footer>
             </span>
             <span className="MainView">
                 <header className="header">{selected ? "Spell Editor" : "Spell Designer"}</header>
