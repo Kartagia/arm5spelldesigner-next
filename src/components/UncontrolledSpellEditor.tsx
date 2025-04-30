@@ -7,8 +7,6 @@ import { SelectGuideline } from "./SelectGuideline";
 import { SelectArts } from "./SelectArts";
 import { validUUID } from "@/lib/modifiers";
 import styles from "./UncotrolledSpellEditor.module.css";
-import { format } from "path";
-import { AutoTextArea } from "react-textarea-auto-witdth-height";
 
 /**
  * Log a message along with a function.
