@@ -145,8 +145,8 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
                 }
             } />)) 
                 }</main>
-                <footer className="footer">
-                <button disabled={!selected} onClick={ () => {
+                <footer className="footer flex">
+                <button className="flex-item" disabled={!selected} onClick={ () => {
                     /**
                      * @todo Confirm dialog.
                      */
@@ -185,16 +185,16 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
                             }} />
                         )}
                 </main>
-                <footer className={"footer"}>
-                    <button disabled={!unsaved} onClick={() => {saveChangesAction()}} >Save changes</button>
-                    <button disabled={!unsaved} onClick={ 
+            </span>
+        </main>
+        <footer className={"footer flex"}>
+                    <button className="flex-item-1" disabled={!unsaved} onClick={() => {saveChangesAction()}} >Save changes</button>
+                    <button className="flex-item-1" disabled={!unsaved} onClick={ 
                         (e) => {
                         setSpells(defaultSpells);
                         setUnsaveGuids([]);
                         setUnsaved(false);
                     }}>Revert changes</button>
                 </footer>
-            </span>
-        </main>
     </div>
 }    

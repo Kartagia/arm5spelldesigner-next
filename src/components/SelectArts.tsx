@@ -38,13 +38,19 @@ export function SelectArts({ forms = [], techniques = [], readonly = false, tech
     };
 
     return (
-        <div>
-            <select disabled={readonly} name="technique" onChange={handleSelectTechnique} value={controlled ? technique : undefined} defaultValue={controlled ? undefined : technique}>
+        <div className="flex row">
+            <div className="flex-item">
+            <label className={"flex-item"}>Form</label>
+            <select className="flex-item border" disabled={readonly} name="technique" onChange={handleSelectTechnique} value={controlled ? technique : undefined} defaultValue={controlled ? undefined : technique}>
                 {techniques.map((technique) => (<option key={technique.abbrev} value={technique.abbrev}>{technique.art}</option>))}
             </select>
-            <select disabled={readonly} name="form" onChange={handleSelectForm} value={controlled ? form : undefined} defaultValue={controlled ? undefined : form}>
+            </div>
+            <div className="flex-item">
+            <label className={"flex-item"}>Technique</label>
+            <select className="flex-item border" disabled={readonly} name="form" onChange={handleSelectForm} value={controlled ? form : undefined} defaultValue={controlled ? undefined : form}>
                 {forms.map((form) => (<option key={form.abbrev} value={form.abbrev}>{form.art}</option>))}
             </select>
+            </div>
         </div>
     );
 }

@@ -198,29 +198,48 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
         setNewSpellName("");
     };
 
-    return (<section className="flex column">
+    const setDescription = ( newDesc: string|undefined) => {
+        if (spell) {
+            setSpell({...spell, description: newDesc});
+        }
+    }
+
+    return (<section className="flex column scroll">
         <header className="header">{spell.name ? spell.name : <input name="name" placeholder="New Spell" onChange={
             e => { setNewSpellName(e.target.value)}
         }></input>}</header>
-        <main className="main">
+        <main className="main column scroll">
+            <div>
         {props.defaultValue === undefined && (props.guidelines ?? []).length > 0 ? 
-        <SelectGuideline guidelines={props.guidelines ?? []} onGuidelineChange={ handleGuidelineChange } />
-        : <><SelectArts controlled={true}
+        <><header>Guideline</header><SelectGuideline guidelines={props.guidelines ?? []} onGuidelineChange={ handleGuidelineChange } /></>
+        : <><h1 className="subtitle">Arts</h1>
+        <div>
+        <SelectArts controlled={true}
             onSelect={ (e) => { e.type === "Form" ? handleFormChange(e) : handleTechniqueChange(e)}}
-        forms={props.forms ?? []} form={form} techniques={props.techniques ?? []} technique={technique} />
-        <SelectLevel onSelect={ (newLevel) => {setSpell({...spell, level: newLevel})} } value={level} />
-        </> 
+        forms={props.forms ?? []} form={form} techniques={props.techniques ?? []} technique={technique} /></div></> 
         }
+        </div>
+        <div className="form-field">
+            <label>Level</label>
+        <SelectLevel onSelect={ (newLevel) => {setSpell({...spell, level: newLevel}); setLevel} } value={level} />
+        </div>
+            <div className="form-field">
+                <label>Description</label>
+        <textarea name="description" onChange={ (e) => {
+            setDescription( e.target.value.trim() == "" ? undefined : e.target.value.trim());
+        }} value={spell?.description} placeholder={"Enter spell descripton here"}>
+        </textarea>
+        </div>
         </main>
         <footer className="footer">
-            <button disabled={incompleteSpell(spell.name ? spell : {...spell, name: newSpellName})} name="commit" onClick={handleCommitChanges}>{props.defaultValue ? "Confirm changes" : "Create spell"}</button>
-            <button name="default" onClick={() => {
+            <button className="flex-item" disabled={incompleteSpell(spell.name ? spell : {...spell, name: newSpellName})} name="commit" onClick={handleCommitChanges}>{props.defaultValue ? "Confirm changes" : "Create spell"}</button>
+            <button className="flex-item" name="default" onClick={() => {
                 setSpell(defaultSpell ?? createNewSpell());
                 setLevel(defaultSpell?.level);
                 setTechnique(defaultSpell?.technique);
                 setForm(defaultSpell?.form);
             }}>{"Cancel changes"}</button>
-            {props.defaultValue ? <button name="close" onClick={() => {
+            {props.defaultValue ? <button className="flex-item" name="close" onClick={() => {
                 if (props.onCancel) {
                     props.onCancel();
                 }
