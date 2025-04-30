@@ -104,6 +104,7 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
             setUnsaved(true);
             console.log("Altered spell wihtout UUID");
         }
+        setSelected(undefined);
     }
 
     /**
@@ -136,7 +137,11 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
             <span className="LeftView">
                 <header className="header">Spell List</header>
                 <main className="main">{spells.map( spell => (<SpellTitle selected={spell === selected} model={spell} key={getSpellKey(spell)} onClick={ (e) => {
-                    setSelected(spell)
+                    if (selected === spell) {
+                        setSelected(undefined);
+                    } else {
+                        setSelected(spell)
+                    }
                 }
             } />)) 
                 }</main>
