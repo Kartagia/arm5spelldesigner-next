@@ -57,16 +57,50 @@ export function getTestAuthDatabaseProperties(): Partial<PoolOptions> {
 /**
  * The connection pool for accessing authentication.
  */
-var authPool: Pool | undefined = (process.env.NODE_ENV === "test" ? new Pool(getTestAuthDatabaseProperties()): new Pool(getAuthDatabaseProperties()));
+var authPool: Pool | undefined = (process.env.NODE_ENV === "test" ? new Pool(getTestAuthDatabaseProperties()) : new Pool(getAuthDatabaseProperties()));
+
+/**
+ * Initialize a connection pool.
+ * @param config The configuration of the pool. An undefined configuration implies use of the current authentication pool, if any
+ * exists.
+ * @param defaultConfig The default configuration for the pool. 
+ * @param current The current pool.
+ * @returns If the configuration is defined, and the current pool is not ended pool, returns the current pool.
+ * Otherwise returns a new pool created with configuration. 
+ */
+export function initPool(config: Partial<PoolConfig> | undefined = undefined, defaultConfig: PoolConfig, current?: Pool): Promise<Pool> {
+    if (config != undefined || current === undefined || current.ended) {
+        // Creating new pool replacing current pool and closing current pool.
+        if (current) {
+            return current.end().then(() => {
+                return new Pool({ ...defaultConfig, ...(config ?? {}) });
+            },
+                (error) => {
+                    console.error("%s: Closing old pool failed", (new Date()).toISOString());
+                    return new Pool({ ...defaultConfig, ...(config ?? {}) });
+                }
+            );
+        } else {
+            return Promise.resolve(new Pool({ ...defaultConfig, ...(config ?? {}) }));
+        }
+    } else {
+        return Promise.resolve(current);
+    }
+}
 
 /**
  * Initialize the authentication pool.
- * @param config The configuration of the pool.
+ * @param config The configuration of the pool. An undefined configuration implies use of the current authentication pool, if any
+ * exists.
  * @returns The promise of the assigned pool. 
  */
-export function initAuthPool(config: Partial<PoolConfig> = {}): Promise<Pool> {
-    authPool = new Pool({ ...getAuthDatabaseProperties(), ...config });
-    return Promise.resolve(authPool);
+export function initAuthPool(config: Partial<PoolConfig> | undefined): Promise<Pool> {
+    return initPool(config, getAuthDatabaseProperties(), authPool).then(
+        (result) => {
+            authPool = result;
+            return result;
+        }
+    )
 }
 
 /**
@@ -334,9 +368,13 @@ var apiPool: Pool | undefined = undefined;
  * @param config The configuration of the pool.
  * @returns The promise of the assigned pool. 
  */
-export function initApiPool(config: Partial<PoolConfig> = {}): Promise<Pool> {
-    apiPool = new Pool({ ...getApiDatabaseProperties(), ...config });
-    return Promise.resolve(apiPool);
+export function initApiPool(config: Partial<PoolConfig>|undefined = undefined): Promise<Pool> {
+    return initPool(config, getApiDatabaseProperties(), apiPool).then( 
+        (result) => {
+            apiPool = result;
+            return result;
+        }
+    );
 }
 
 
