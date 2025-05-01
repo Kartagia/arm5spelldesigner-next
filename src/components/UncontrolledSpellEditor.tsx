@@ -20,13 +20,13 @@ function logFn<TYPE>(value: TYPE, message?: string, ...optionalValues: any[]): T
     return value;
 }
 
-function createNewSpell(forms: string[] = [], techniques: string[] = []): Partial<SpellModel> {
+function createNewSpell(forms: ArtModel[] = [], techniques: ArtModel[] = []): Partial<SpellModel> {
     const result: Partial<SpellModel> = {
         name: "",
         level: 1,
         guideline: undefined,
-        form: techniques[0],
-        technique: forms[0],
+        form: techniques[0]?.abbrev,
+        technique: forms[0]?.abbrev,
         description: undefined
     };
     return result;
@@ -96,7 +96,7 @@ export function SelectLevel(props: SelectLevelProps) {
  */
 export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperties, "value"> & SpellEditorEvents) {
     const [defaultSpell, setDefaultSpell] = useState(props.defaultValue);
-    const [spell, setSpell] = useState(props.defaultValue ?? createNewSpell());
+    const [spell, setSpell] = useState(props.defaultValue ?? createNewSpell(props.forms, props.techniques));
     const [level, setLevel] = useState(spell.level);
     const [form, setForm] = useState(spell.form);
     const [technique, setTechnique] = useState(spell.technique);
@@ -107,7 +107,7 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
         if (props.defaultValue !== defaultSpell) {
             console.log("Default spell has changed");
             setDefaultSpell(props.defaultValue);
-            const newSpell = props.defaultValue ?? createNewSpell();
+            const newSpell = props.defaultValue ?? createNewSpell(props.forms, props.techniques);
             setSpell(newSpell);
             setTechnique(newSpell.technique);
             setForm(newSpell.form);
@@ -258,7 +258,7 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
                 if (props.onCancel) {
                     props.onCancel();
                 }
-                const newSpell = createNewSpell();
+                const newSpell = createNewSpell(props.forms, props.techniques);
                 setSpell(newSpell);
                 setLevel(newSpell.level);
                 setTechnique(newSpell.technique);
