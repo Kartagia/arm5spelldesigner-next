@@ -43,6 +43,12 @@ export async function signup(previousState: SignupFormState, formData: FormData)
     createUser({ email: validatedFields.data.email, displayName: validatedFields.data.displayName }, { password: validatedFields.data.password }).then(
         (userId) => {
             console.log("Created user[%s]: %s, %s", userId, validatedFields.data.email, validatedFields.data.displayName);
+            // Creating login to the user.
+            return loginUser(validatedFields.data.email, validatedFields.data.password).then(
+                () => {
+                    redirect(previousState?.origin ?? "/spells");
+                }
+            )
         },
         (error) => {
             console.error("Creating user %s failed due %s.", validatedFields.data.email, error.message);
@@ -61,9 +67,6 @@ export async function signup(previousState: SignupFormState, formData: FormData)
  * @param formData The login form contents.
  */
 export async function login(previousState: LoginFormState, formData: FormData) {
-    const email = formData.get(EmailField);
-    const password = formData.get(PasswordField);
-
     const validatedFields = LoginFormSchema.safeParse({
         email: formData.get(EmailField),
         password: formData.get(PasswordField)
@@ -94,6 +97,6 @@ export async function login(previousState: LoginFormState, formData: FormData) {
     }
 
     // Redirect. 
-    redirect(previousState?.origin ?? "/");
+    redirect(previousState?.origin ?? "/spells");
 
 }
