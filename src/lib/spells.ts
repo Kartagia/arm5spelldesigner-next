@@ -1,6 +1,8 @@
 import { randomUUID } from "crypto";
 import { RDT, validUUID } from "./modifiers";
 
+export type SpellLevel = "Generic"|number;
+
 export interface SpellModel {
 
     /**
@@ -22,7 +24,7 @@ export interface SpellModel {
     /**
      * The level of the spell.
      */
-    level: number | "Generic";
+    level: SpellLevel;
     /**
      * The technique abbreviation.
      */
@@ -168,10 +170,6 @@ export function getSpellKey(spell: SpellModel) {
     }
 }
 
-
-export async function getAllSpells(): Promise<SpellModel[]> {
-    return Promise.resolve([{ name: "Test spell one", level: 15, form: "Te", technique: "Cr", guideline: randomUUID().toString() }]);
-}
 export interface ArtModel {
     guid?: string;
     art: string;
