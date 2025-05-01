@@ -73,10 +73,18 @@ export async function createSessionCookie(sessionId: string): Promise<Cookie> {
  */
 export async function validateSession(sessionId: string): Promise<{ userInfo: UserInfo | undefined; sessionCookie: Cookie; }> {
     const { session, user } = await lucia.validateSession(sessionId);
-    if (session && user && session.fresh) {
-        return { userInfo: await getUserInfo(user.id), sessionCookie: lucia.createSessionCookie(session.id) };
+    if (session && user) {
+        console.log("Session %s of user %s is kosher - getting details", session.id, user.id);
+        /**
+         * @todo Add creation of a new cookie, if the session is fresh - requiring refreshing.
+         */
+        return { userInfo: await getUserInfo(user.id).then( (result) => {
+            console.log("Got user information");
+            return result;
+        }), sessionCookie: lucia.createSessionCookie(session.id) };
     } else {
         // Invalidate with blank cookien
+        console.log("No valid session for session %s", sessionId);
         throw lucia.createBlankSessionCookie();
     }
 }
