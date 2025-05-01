@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { RDT } from "./modifiers";
+import { RDT, validUUID } from "./modifiers";
 
 export interface SpellModel {
 
@@ -51,6 +51,67 @@ export interface SpellModel {
      */
     traits?: string[];
 
+}
+
+export function validRDT(value: any) : boolean {
+    if (value != null && typeof(value) === "object") {
+
+        if (["type", "name"].every( (prop) => (prop in value && typeof (value[prop]) === "string" && value[prop].trim()) )) {
+            // The RDT has type and name.
+            if ( !("modifier" in value) || Number.isSafeInteger(Number(value.modifier)) 
+            
+                && !("secondaryRDTs" in value) || value.secondaryRDTs.every(
+                    validUUID
+                )
+            ) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * Check validity of a spell. 
+ * @param value 
+ * @param options 
+ */
+export function checkSpell(value: any, options: {message?: string} = {}) : SpellModel {
+    const {message = "Invalid spell"} = options;
+    if (value != null && typeof(value) === "object" && !Array.isArray(value)) {
+        const RDTOptions: (keyof SpellModel)[] = ["range", "duration", "target"];
+
+        if (RDTOptions.some( (prop) => (prop in value && (!Array.isArray(value[prop]) || value[prop].some( (rdt: any) => (!validRDT(rdt))) )) ) ) {
+            // Some of thE RDTs was invalid.
+            throw new SyntaxError(message, {cause: `Invalid RDT property`})
+        }
+
+        ["form", "technique"].forEach( (prop) => {
+            if (! (prop in value) ) {
+                throw SyntaxError(message, {cause: `Missing required property ${prop}`});
+            } else if (!value[prop] || !value[prop]?.matches(/^[A-Z][a-z]{1,4}$$/) ) {
+                throw SyntaxError(message, {cause: `Invalid property ${prop}`});
+            }
+        });
+        if (!("level" in value)) {
+
+        } else if (value.level !== "Generic" && !Number.isSafeInteger(value.level)) {
+            throw new SyntaxError(message, { cause: "Invalid property level"});            
+        }
+        if ("description" in value && typeof(value.description !== "string") ) {
+            throw new SyntaxError(message, { cause: "Invalid property description"});
+        }
+
+        return {
+            name: value.name, technique: value.technique, form: value.form, range: value.range, duration: value.duration, target: value.target,
+            description: value.description,
+            guid: value.guid,
+            level: value.level,
+            guideline: value.guideline
+        };
+    } 
+        
+    throw new SyntaxError(message);
 }
 
 /**
