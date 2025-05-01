@@ -5,6 +5,9 @@ import { Suspense } from "react";
 import { SpellDesignerPanel } from "@/components/SpellDesignerPanel";
 import { getAllSpells, storeSpells } from "@/data/spells";
 import { UUID } from "crypto";
+import { validateSession } from "@/lib/session";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 
 
@@ -19,9 +22,21 @@ async function SpellDesignerWrapper() {
     const allRDTs = await getAllRDTs();
     const spells = await getAllSpells();
 
-
+    const sessionId = await (await cookies()).get("auth_session")?.value;
+    if (sessionId) {
+        const {userInfo, sessionCookie} = await validateSession(sessionId);
+        if (!userInfo) {
+            console.log("Redirecting user to login")
+            redirect("/login");
+            return;
+        }
+    } else {
+        console.log("Redirecting user to login")
+        redirect("/login");
+    }
 
     return (<SpellDesignerPanel spells={spells} rdts={allRDTs} forms={forms} techniques={techniques} guidelines={guidelines} />)
+
 }
 
 
@@ -29,9 +44,11 @@ async function SpellDesignerWrapper() {
 /**
  * Spell editor page.
  */
-export default function SpellsPage() {
+export default async function SpellsPage() {
 
+    // Testing login.
 
+    // Returning the page.
     return (
         <section className="primary min-h-100">
             <header className="title primary">Spells</header>
