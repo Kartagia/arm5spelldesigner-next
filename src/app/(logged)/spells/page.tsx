@@ -8,7 +8,8 @@ import { UUID } from "crypto";
 import { validateSession } from "@/lib/session";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-
+import { logout } from "@/actions/auth.actions";
+import LogoutButton from "@/components/LogoutButton";
 
 
 /**
@@ -47,6 +48,7 @@ async function SpellDesignerWrapper() {
 export default async function SpellsPage() {
 
     // Testing login.
+    const {userInfo} = await validateSession( (await cookies()).get("auth_session")?.value ?? "");
 
     // Returning the page.
     return (
@@ -57,7 +59,7 @@ export default async function SpellsPage() {
                     <SpellDesignerWrapper />
                 </Suspense>
             </main>
-            <footer className="footer">Spell designer blurb goes here.</footer>
+            <footer className="footer">{userInfo ? <LogoutButton>Logout</LogoutButton> : <button formAction={() => {redirect("/login")}}>Log in</button>}</footer>
         </section>
     )
 }

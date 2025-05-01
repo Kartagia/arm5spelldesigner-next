@@ -68,8 +68,7 @@ export async function createSessionCookie(sessionId: string): Promise<Cookie> {
 /**
  * Validate session.
  * @param sessionId The session identifier.
- * @returns The cookie sent to the user.
- * @throws {Cookie} The rejected cookie used to invalidate the cookie.
+ * @returns The cookie sent to the user. The userinfo is undefined, if there is no valid session. 
  */
 export async function validateSession(sessionId: string): Promise<{ userInfo: UserInfo | undefined; sessionCookie: Cookie; }> {
     const { session, user } = await lucia.validateSession(sessionId);
@@ -85,7 +84,7 @@ export async function validateSession(sessionId: string): Promise<{ userInfo: Us
     } else {
         // Invalidate with blank cookien
         console.log("No valid session for session %s", sessionId);
-        throw lucia.createBlankSessionCookie();
+        return {userInfo: undefined, sessionCookie: lucia.createBlankSessionCookie()};
     }
 }
 /**

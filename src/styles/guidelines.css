@@ -26,8 +26,8 @@
     --color-foreground: var(--secondary);
     --color-primary: var(--primary);
     --color-secondary: var(--secondary);
-    --font-sans: var(--font-caudex-sans);
-    --font-bold: var(--font-caudex-sans-bold);
+    --font-sans: var(--font-sans);
+    --font-bold: var(--font-sans-bold);
   }
 
   .title {
@@ -114,7 +114,6 @@
     margin-right: auto;
     background-color: var(--secondary);
     color: var(--parchment);
-    min-height: 30px;
   }
 
   .flex.column > .header, .flex.column > .footer {
@@ -131,6 +130,18 @@
     flex: 1 1 auto;
     padding: 0 2em;
     margin: 0 1em;
+  }
+
+  .flex-item-remainder {
+    flex: 1 1 auto;
+  }
+  .flex.column .flex-item-remainder{
+    margin-bottom: auto;
+    padding-bottom: auto;
+  }
+  .flex.row .flex-item-remainder {
+    margin-bottom: auto;
+    padding-bottom: auto;
   }
 
   .flex-item-1 {

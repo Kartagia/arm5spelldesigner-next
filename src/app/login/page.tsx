@@ -22,8 +22,8 @@ export default function LoginPage() {
     ]
 
     return (
-    <form action={action}>
-        <div>
+        <form name="login" action={action}>
+        <div className="flex column min-h-100">
             <header className="header"><h1 className="title">Create a new account</h1></header>
             <main className="main">
             {
@@ -34,6 +34,7 @@ export default function LoginPage() {
                 </div>
                 { (state?.errors?.[field.name] as (string[]|undefined)) && (<div className="error form-field"><ul>{state.errors[field.name].map( (error: string[]) => (<li key={error.join("")}>{error}</li>))}</ul></div>)}</div>
             ))
+            
             }
             </main>
             <footer className="footer">
@@ -41,5 +42,7 @@ export default function LoginPage() {
                 <Link href="/signup" className="button">Create a new account</Link>
             </footer>
         </div>
-    </form>);
+        </form>
+
+        );
 }

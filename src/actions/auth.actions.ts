@@ -2,9 +2,10 @@
 
 import { createApiKey, EmailField, PasswordField, validEmail, validPassword } from "@/lib/auth";
 import { ErrorStruct, SignupFormSchema, SignupFormState, LoginFormState, LoginFormSchema } from "@/lib/definitions";
-import { createSession, createSessionCookie, validateSession } from "@/lib/session";
+import { createSession, createSessionCookie, logout as endSession } from "@/lib/session";
 import { createUser, loginUser } from "@/lib/users";
 import { Cookie } from "lucia";
+import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -46,6 +47,7 @@ export async function signup(previousState: SignupFormState, formData: FormData)
             // Creating login to the user.
             return loginUser(validatedFields.data.email, validatedFields.data.password).then(
                 () => {
+                    revalidatePath("/", "layout");
                     redirect(previousState?.origin ?? "/spells");
                 }
             )
@@ -97,6 +99,19 @@ export async function login(previousState: LoginFormState, formData: FormData) {
     }
 
     // Redirect. 
+    revalidatePath("/", "layout");
     redirect(previousState?.origin ?? "/spells");
 
+}
+
+export async function logout() {
+    console.log("Starting logout");
+    const cookieJar = await cookies();
+    const sessionId = cookieJar.get("auth_session")?.value;
+    console.log("Logging out session %s", sessionId);
+    const newCookie = await endSession(sessionId ?? "");
+    cookieJar.set(newCookie);
+    console.log("Logged out");
+    revalidatePath("/", "layout");
+    redirect("/login");
 }
