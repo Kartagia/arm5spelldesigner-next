@@ -20,11 +20,13 @@ function logFn<TYPE>(value: TYPE, message?: string, ...optionalValues: any[]): T
     return value;
 }
 
-function createNewSpell(): Partial<SpellModel> {
+function createNewSpell(forms: string[] = [], techniques: string[] = []): Partial<SpellModel> {
     const result: Partial<SpellModel> = {
         name: "",
-        level: 0,
+        level: 1,
         guideline: undefined,
+        form: techniques[0],
+        technique: forms[0],
         description: undefined
     };
     return result;
