@@ -1,6 +1,7 @@
 
 import { PoolClient } from 'pg';
-import { createApiConnection, getAuthDatabaseProperties } from "./db";
+import { createApiConnection } from "./db";
+import { getAuthDatabaseProperties } from './dbConfig';
 import { randomBytes, pbkdf2, timingSafeEqual, randomUUID } from 'node:crypto';
 
 /**

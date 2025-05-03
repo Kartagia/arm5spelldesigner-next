@@ -5,11 +5,16 @@ import 'server-only';
 
 import { Lucia, TimeSpan, Cookie } from "lucia";
 import { UserInfo, getUserInfo } from "./users";
-import { getAuthDatabaseProperties } from "./db";
+import { initAuthPool } from "./db";
+import { getAuthDatabaseProperties } from './dbConfig';
 import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
 import pg from 'pg';
 
-const pool = new pg.Pool(getAuthDatabaseProperties());
+const pool = await initAuthPool(undefined);
+if (pool === undefined) {
+    console.error("Could not initialize connectoin to the authentication database");
+    throw new Error("Session database logging not available");
+}
 const adapter = new NodePostgresAdapter(pool, {
     /**
      * The users table name.
@@ -71,20 +76,27 @@ export async function createSessionCookie(sessionId: string): Promise<Cookie> {
  * @returns The cookie sent to the user. The userinfo is undefined, if there is no valid session. 
  */
 export async function validateSession(sessionId: string): Promise<{ userInfo: UserInfo | undefined; sessionCookie: Cookie; }> {
-    const { session, user } = await lucia.validateSession(sessionId);
-    if (session && user) {
-        console.log("Session %s of user %s is kosher - getting details", session.id, user.id);
-        /**
-         * @todo Add creation of a new cookie, if the session is fresh - requiring refreshing.
-         */
-        return { userInfo: await getUserInfo(user.id).then( (result) => {
-            console.log("Got user information");
-            return result;
-        }), sessionCookie: lucia.createSessionCookie(session.id) };
-    } else {
-        // Invalidate with blank cookien
-        console.log("No valid session for session %s", sessionId);
-        return {userInfo: undefined, sessionCookie: lucia.createBlankSessionCookie()};
+    try {
+        const { session, user } = await lucia.validateSession(sessionId);
+        if (session && user) {
+            console.log("Session %s of user %s is kosher - getting details", session.id, user.id);
+            /**
+             * @todo Add creation of a new cookie, if the session is fresh - requiring refreshing.
+             */
+            return {
+                userInfo: await getUserInfo(user.id).then((result) => {
+                    console.log("Got user information");
+                    return result;
+                }), sessionCookie: lucia.createSessionCookie(session.id)
+            };
+        } else {
+            // Invalidate with blank cookien
+            console.log("No valid session for session %s", sessionId);
+            return { userInfo: undefined, sessionCookie: lucia.createBlankSessionCookie() };
+        }
+    } catch (error) {
+        console.error("Session validation failed due error", error);
+        return { userInfo: undefined, sessionCookie: lucia.createBlankSessionCookie() };
     }
 }
 /**
