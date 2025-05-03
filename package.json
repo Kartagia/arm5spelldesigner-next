@@ -19,7 +19,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^1.40.0",
+    "@dotenvx/dotenvx": "^1.42.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.11.11",

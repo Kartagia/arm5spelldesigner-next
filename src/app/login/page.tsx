@@ -2,7 +2,6 @@
 import { login } from "@/actions/auth.actions";
 import Link from "next/link";
 import { useActionState, useId } from "react";
-import { LoginFormState} from "@/lib/definitions";
 
 
 export default function LoginPage() {
@@ -19,7 +18,7 @@ export default function LoginPage() {
         name: "password",
         type: "password"
     }
-    ]
+    ];
 
     return (
         <form name="login" action={action}>
@@ -32,7 +31,8 @@ export default function LoginPage() {
                     <input name={field.name} id={`${id}:${field.name}`} type={field.type} defaultValue={state?.values && field.name in state.values ? (
                         (state?.values?.[field.name] as string) ?? "") : ""}></input>
                 </div>
-                { (state?.errors?.[field.name] as (string[]|undefined)) && (<div className="error form-field"><ul>{state.errors[field.name].map( (error: string[]) => (<li key={error.join("")}>{error}</li>))}</ul></div>)}</div>
+                { state?.errors?.[field.name] !== undefined && (state?.errors?.[field.name]?.length ?? 0) > 0 && (<div className="error form-field"><ul>{(state?.errors?.[field.name] ?? []).map( 
+                    (error: string) => (<li key={error}>{error}</li>))}</ul></div>)}</div>
             ))
             
             }

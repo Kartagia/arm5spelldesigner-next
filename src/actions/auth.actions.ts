@@ -55,10 +55,10 @@ export async function signup(previousState: SignupFormState, formData: FormData)
         (error) => {
             console.error("Creating user %s failed due %s.", validatedFields.data.email, error.message);
             return {
-                values,
+                values: values as Record<string, string>,
                 errors: {
-                    "general": "Could not create user."
-                }
+                    "general": ["Could not create user."]
+                } as Record<string, string[]>
             }
         }
     )
@@ -76,25 +76,37 @@ export async function login(previousState: LoginFormState, formData: FormData) {
     if (validatedFields.success) {
         const user = await loginUser(validatedFields.data.email, validatedFields.data.password);
         console.log("Got user information for user %s: %s", user.id, user.email);
-        const session = await createSession(user.id, await createApiKey()).then(
-            (result) => {
-                console.log("Got session with id %s", result.id);
-                return result;
-            }, 
-            (error) => {
-                console.error("Did not get session");
-                throw error;
+        try {
+            const session = await createSession(user.id, await createApiKey()).then(
+                (result) => {
+                    console.log("Got session with id %s", result.id);
+                    return result;
+                },
+                (error) => {
+                    console.error("Could not create session for user %s", user.id);
+                    throw error;
+                }
+            );
+            // Create new session cookie, if the session is no longer fresh.
+            const cookie = await createSessionCookie(session.id);
+            (await cookies()).set(cookie);
+            console.log("Cookies added");
+        } catch (error) {
+            // session creation failed. 
+            return {
+                values: { email: formData.get(EmailField) } as Record<string, string>,
+                errors: {
+                    general: ["Invalid username or password"]
+                } as Record<string, string[]>
             }
-        );
-        console.log("Got session")
-        const cookie = await createSessionCookie(session.id);
-        (await cookies()).set(cookie);
-        console.log("Cookies added");
+        }
     } else {
         // Failed.
         return {
-            values: { email: formData.get(EmailField) },
-            errors: validatedFields.error.flatten().fieldErrors
+            values: { email: formData.get(EmailField) }  as Record<string, string>,
+            errors: {
+                general: ["Invalid username or password"]
+            } as Record<string, string[]>
         }
     }
 
