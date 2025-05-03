@@ -10,7 +10,7 @@ import { createApiConnection, initApiPool } from "@/lib/db";
  * @param params The route parameters. 
  * @returns The response ot the API request. 
  */
-export async function GET( request: NextRequest, params: Promise<{ id: string }> ) {
+export async function GET( request: NextRequest, { params } : {params: Promise<{ id: string }>} ) {
 
     const permissions = await validateApiRequest(request);
     
