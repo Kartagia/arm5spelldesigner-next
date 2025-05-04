@@ -5,8 +5,10 @@ import { SpellEditorProperties, SpellEditorEvents } from './SpellEditor';
 import { ArtModel, GuidelineModel, NewSpellModel, SpellModel } from '@/lib/spells';
 import { SelectGuideline } from "./SelectGuideline";
 import { SelectArts } from "./SelectArts";
-import { validUUID } from "@/lib/modifiers";
+import { checkUUID, validUUID } from "@/lib/modifiers";
 import styles from "./UncotrolledSpellEditor.module.css";
+import { storeDbSpells } from "@/data/spells";
+import { createSpell as createApiSpell } from "@/actions/spells.actions"
 
 /**
  * Log a message along with a function.
@@ -266,6 +268,37 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
                 setDescription(newSpell.description ?? "");
                 setNewSpellName("");
             }} >Close</button> : null}
+            {!props.defaultValue && false && <button disabled={newSpellName.length === 0} className="flex-item" name="apiStore" onClick={
+                async (e) => {
+                    e.preventDefault();
+                    const name = newSpellName.trim();
+                    if (name && spell.level && spell.technique && spell.form) {
+                        const newSpell : NewSpellModel = {...spell, technique: spell.technique, form: spell.form, level: spell.level ?? 1, name};
+                        await createApiSpell(newSpell).then(
+                            (result) => {
+                                alert("Created spell with GUID: " + result);
+                                if(name && spell.level !== undefined  && props.onConfirm) {
+                                    props.onConfirm({...newSpell, guid: checkUUID(result)});
+                                }
+                            },
+                            (error) => {
+                                alert("Creating spell failed: " + error);
+                            }
+                        );
+                        // Clearing the spell ui.
+                    } else {
+                        alert("You must given spell proper: " +  
+                            ([
+                                ...(name.trim() ? ["name"] : [] as string[]),
+                                ...(!spell.level ? ["level"]: [] as string[]),
+                                ...(!spell.technique ? ["technique"]: [] as string[]),
+                                ...(!spell.form ? ["form"]: [] as string[]),
+                            ]).join(", ")
+                        );
+                    }
+                } 
+            }>Uncached save</button>
+            }
         </footer>
     </section>)
 }

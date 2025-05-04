@@ -74,9 +74,9 @@ export async function login(previousState: LoginFormState, formData: FormData) {
         password: formData.get(PasswordField)
     });
     if (validatedFields.success) {
-        const user = await loginUser(validatedFields.data.email, validatedFields.data.password);
-        console.log("Got user information for user %s: %s", user.id, user.email);
         try {
+            const user = await loginUser(validatedFields.data.email, validatedFields.data.password);
+            console.log("Got user information for user %s: %s", user.id, user.email);
             const session = await createSession(user.id, await createApiKey()).then(
                 (result) => {
                     console.log("Got session with id %s", result.id);
@@ -90,9 +90,14 @@ export async function login(previousState: LoginFormState, formData: FormData) {
             // Create new session cookie, if the session is no longer fresh.
             const cookie = await createSessionCookie(session.id);
             (await cookies()).set(cookie);
-            console.log("Cookies added");
+            (await cookies()).set("x-openapi-token", cookie.value, { maxAge: 24*60*60, path:"/"});
+            console.log("Cookies added - %s", [
+                ...((await cookies()).has(cookie.name) ? [cookie.name] : []),
+                ...((await cookies()).has("x-openapi-token") ? ["x.openapi-token"] : [])
+            ].join(", "));
         } catch (error) {
             // session creation failed. 
+            console.error("Session validation failed due error: %s", error);
             return {
                 values: { email: formData.get(EmailField) } as Record<string, string>,
                 errors: {

@@ -23,7 +23,7 @@ export default function LoginPage() {
     return (
         <form name="login" action={action}>
         <div className="flex column min-h-100">
-            <header className="header"><h1 className="title">Create a new account</h1></header>
+            <header className="header"><h1 className="title">Login with existing account</h1></header>
             <main className="main">
             {
                 fields.map( field => (<div key={field.name}><div key={field.name} className="form-field">

@@ -8,7 +8,6 @@ import { UserInfo, getUserInfo } from "./users";
 import { initAuthPool } from "./db";
 import { getAuthDatabaseProperties } from './dbConfig';
 import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
-import pg from 'pg';
 
 const pool = await initAuthPool(undefined);
 if (pool === undefined) {
@@ -40,7 +39,9 @@ export const lucia = new Lucia(adapter, {
         }
     },
     sessionCookie: {
-
+        attributes: {
+            secure: process.env.NODE_ENV === "production" && (process.env.LOCAL_PRODUCTION ?? "") !== "true"
+        }
     }
 });
 
@@ -67,7 +68,11 @@ declare module "lucia" {
  */
 
 export async function createSessionCookie(sessionId: string): Promise<Cookie> {
-    return lucia.createSessionCookie(sessionId);
+    if (sessionId) {
+        return lucia.createSessionCookie(sessionId);
+    } else {
+        return lucia.createBlankSessionCookie();
+    }
 }
 
 /**
@@ -77,7 +82,10 @@ export async function createSessionCookie(sessionId: string): Promise<Cookie> {
  */
 export async function validateSession(sessionId: string): Promise<{ userInfo: UserInfo | undefined; sessionCookie: Cookie; }> {
     try {
-        const { session, user } = await lucia.validateSession(sessionId);
+        const { session, user } = await lucia.validateSession(sessionId).catch( (error) => {
+            console.error("Validation failed due error: %s", error);
+            return { session: null, user: null };
+        });
         if (session && user) {
             console.log("Session %s of user %s is kosher - getting details", session.id, user.id);
             /**
@@ -87,7 +95,7 @@ export async function validateSession(sessionId: string): Promise<{ userInfo: Us
                 userInfo: await getUserInfo(user.id).then((result) => {
                     console.log("Got user information");
                     return result;
-                }), sessionCookie: lucia.createSessionCookie(session.id)
+                }), sessionCookie: await lucia.createSessionCookie(session.id)
             };
         } else {
             // Invalidate with blank cookien

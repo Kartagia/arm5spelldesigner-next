@@ -7,20 +7,23 @@
 import { checkUUID, RDT, validUUID } from "@/lib/modifiers";
 import { checkSpell, getAllGuidelines, NewSpellModel, SpellLevel, SpellModel } from "@/lib/spells";
 import { randomUUID, UUID } from "crypto";
-import { getAllRDTs } from "./rdts";
+import { createRDT, getAllRDTs } from "./rdts";
 import { resourceLimits } from "worker_threads";
 import { getAllArts, getAllTechniques } from "./arts";
+import { logger } from "@/lib/api_auth";
+import { error } from "console";
+import { createApiConnection } from "@/lib/db";
 
 const allRdts = await getAllRDTs();
 
-function getRdt<T extends string>(value: RDT<T>|undefined) {
+function getRdt<T extends string>(value: RDT<T> | undefined) {
     if (value) {
         return [value]
     } else {
         return [];
     }
 }
-function getRdtUUID<T extends string>(value: RDT<T>|undefined):UUID[] {
+function getRdtUUID<T extends string>(value: RDT<T> | undefined): UUID[] {
     if (value && validUUID(value.guid)) {
         return [checkUUID(value.guid)]
     } else {
@@ -30,23 +33,23 @@ function getRdtUUID<T extends string>(value: RDT<T>|undefined):UUID[] {
 
 var spellStore: SpellModel[] = [
 
-    { 
+    {
         guid: randomUUID(),
-        name: "Rock of Viscid Clay", technique: "Mu", form: "Te", level: 15, 
-        range: getRdt(allRdts.find( (rdt) => (rdt.type === "Range" && rdt.name === "Touch"))) as RDT<"Range">[],
-        duration: getRdt(allRdts.find( (rdt) => (rdt.type === "Duration" && rdt.name === "Concentration"))) as RDT<"Duration">[], 
-        target: getRdt(allRdts.find( (rdt) => (rdt.type === "Target" && rdt.name === "Part"))) as RDT<"Target">[],
+        name: "Rock of Viscid Clay", technique: "Mu", form: "Te", level: 15,
+        range: getRdt(allRdts.find((rdt) => (rdt.type === "Range" && rdt.name === "Touch"))) as RDT<"Range">[],
+        duration: getRdt(allRdts.find((rdt) => (rdt.type === "Duration" && rdt.name === "Concentration"))) as RDT<"Duration">[],
+        target: getRdt(allRdts.find((rdt) => (rdt.type === "Target" && rdt.name === "Part"))) as RDT<"Target">[],
         description: "Change the stone touched by the caster into clay allowing manipulating it"
-    
+
     },
-    { 
+    {
         guid: randomUUID(),
-        name: "Lampi without Flame", technique: "Cr", form: "Ig", level: 15, 
-        range: getRdt(allRdts.find( (rdt) => (rdt.type === "Range" && rdt.name === "Touch"))) as RDT<"Range">[],
-        duration: getRdt(allRdts.find( (rdt) => (rdt.type === "Duration" && rdt.name === "Concentration"))) as RDT<"Duration">[], 
-        target: getRdt(allRdts.find( (rdt) => (rdt.type === "Target" && rdt.name === "Individual"))) as RDT<"Target">[],
+        name: "Lampi without Flame", technique: "Cr", form: "Ig", level: 15,
+        range: getRdt(allRdts.find((rdt) => (rdt.type === "Range" && rdt.name === "Touch"))) as RDT<"Range">[],
+        duration: getRdt(allRdts.find((rdt) => (rdt.type === "Duration" && rdt.name === "Concentration"))) as RDT<"Duration">[],
+        target: getRdt(allRdts.find((rdt) => (rdt.type === "Target" && rdt.name === "Individual"))) as RDT<"Target">[],
         description: "Create a directionless light equal to lamplight."
-    
+
     }
 
 ];
@@ -73,7 +76,7 @@ async function getUUID() {
 /**
  * The api reference.
  */
-export interface Reference<TYPE extends string|undefined = string|undefined> {
+export interface Reference<TYPE extends string | undefined = string | undefined> {
     /**
      * The referenced UUID.
      */
@@ -92,41 +95,45 @@ export interface ApiSpellModel {
     range: UUID[];
     duration: UUID[];
     target: UUID[];
+    size: UUID[],
+    other: UUID[]
     level: SpellLevel;
-    form: string|Reference<"art.form">;
-    technique: string|Reference<"art.technique">;
+    form: string | Reference<"art.form">;
+    technique: string | Reference<"art.technique">;
     guideline?: UUID;
     traits?: string[];
 }
 
 export type NewApiSpellModel = Omit<ApiSpellModel, "guid">
 
-export async function convertSpellToApi(spell: SpellModel|NewSpellModel): Promise<ApiSpellModel|NewApiSpellModel> {
+export async function convertSpellToApi(spell: SpellModel | NewSpellModel): Promise<ApiSpellModel | NewApiSpellModel> {
 
     // Create RDTs for the RDTs not yet implemented.
-    function createRdtIfNecessary<TYPE extends string>( rdts: RDT<TYPE>[]|undefined): RDT<TYPE>[] {
-        return [ ...(rdts ?? [])].map( rdt => {
+    async function createRdtIfNecessary<TYPE extends string>(rdts: RDT<TYPE>[] | undefined): Promise<RDT<TYPE>[]> {
+        return Promise.all([...(rdts ?? [])].map(async rdt => {
             if (!validUUID(rdt.guid)) {
                 /**
                  * @todo Create a new rdt with rdt data source.
                  */
-                const guid = randomUUID();
-                return {...rdt, guid};
+                const uuid: UUID | undefined = await createRDT(rdt).catch((error) => (undefined));
+                return { ...rdt, uuid } as RDT<TYPE>
             } else {
                 return rdt;
             }
-        });
+        }));
     };
 
-    const result: ApiSpellModel|NewApiSpellModel = {
+    const result: ApiSpellModel | NewApiSpellModel = {
         name: spell.name,
         level: spell.level,
-        guideline: spell.guideline ? checkUUID(spell.guideline): undefined,
+        guideline: spell.guideline ? checkUUID(spell.guideline) : undefined,
         technique: spell.technique,
         form: spell.form,
-        range: createRdtIfNecessary<"Range">(spell.range).map( rdt => (rdt.guid as UUID)),
-        duration: createRdtIfNecessary<"Duration">(spell.duration).map( rdt => (rdt.guid as UUID)),
-        target: createRdtIfNecessary<"Target">(spell.target).map( rdt => (rdt.guid as UUID)),
+        range: await createRdtIfNecessary<"Range">(spell.range).then((all) => (all.map(rdt => (rdt.guid as UUID)))),
+        duration: await createRdtIfNecessary<"Duration">(spell.duration).then((all) => (all.map(rdt => (rdt.guid as UUID)))),
+        target: await createRdtIfNecessary<"Target">(spell.target).then((all) => (all.map(rdt => (rdt.guid as UUID)))),
+        size: await createRdtIfNecessary<"Size">(spell.size).then((all) => (all.map(rdt => (rdt.guid as UUID)))),
+        other: await createRdtIfNecessary<string>(spell.other).then((all) => (all.map(rdt => (rdt.guid as UUID)))),
         traits: spell.traits
     };
     if ("guid" in spell && validUUID(spell.guid)) {
@@ -146,17 +153,17 @@ export async function convertSpellToApi(spell: SpellModel|NewSpellModel): Promis
  */
 export async function convertApiToSpell(spellApi: ApiSpellModel): Promise<SpellModel> {
 
-    async function getArtKeyIfNeeded<TYPE extends string>(value: Reference<TYPE>|string, taskList?: Promise<any>[]): Promise<string> {
+    async function getArtKeyIfNeeded<TYPE extends string>(value: Reference<TYPE> | string, taskList?: Promise<any>[]): Promise<string> {
         if (typeof value === "string") {
             return value;
         } else if (taskList) {
-            const result: Promise<string> = getAllArts().then( arts => (arts.find( art => (art.guid === value.guid))))
-            .then( (res) => {if (res) { return res.abbrev; } else { throw "Not found"}});
+            const result: Promise<string> = getAllArts().then(arts => (arts.find(art => (art.guid === value.guid))))
+                .then((res) => { if (res) { return res.abbrev; } else { throw "Not found" } });
             taskList.push(result);
 
-            return result 
+            return result
         } else {
-            const result = (await getAllArts()).find( art => (art.guid === value.guid));
+            const result = (await getAllArts()).find(art => (art.guid === value.guid));
             if (result) {
                 return result.abbrev;
             } else {
@@ -166,10 +173,10 @@ export async function convertApiToSpell(spellApi: ApiSpellModel): Promise<SpellM
     }
     const allRdts = await getAllRDTs();
 
-    async function getRDTValue<TYPE extends string>(ids: UUID[], type: TYPE|TYPE[]): Promise<RDT<TYPE>[]> {
-        return ids.reduce( (result: RDT<TYPE>[], uuid: string) => {
+    async function getRDTValue<TYPE extends string>(ids: UUID[], type: TYPE | TYPE[]): Promise<RDT<TYPE>[]> {
+        return ids.reduce((result: RDT<TYPE>[], uuid: string) => {
             const validTypes: string[] = Array.isArray(type) ? type : [type];
-            const found = allRdts.find( (cursor) => (cursor.guid === uuid && (validTypes.includes(cursor.type.toString()))));
+            const found = allRdts.find((cursor) => (cursor.guid === uuid && (validTypes.includes(cursor.type.toString()))));
             if (found) {
                 result.push(found as RDT<TYPE>);
                 return result;
@@ -182,7 +189,7 @@ export async function convertApiToSpell(spellApi: ApiSpellModel): Promise<SpellM
         }, []);
     }
 
-    const result : Partial<SpellModel> = {
+    const result: Partial<SpellModel> = {
         name: spellApi.name,
         level: spellApi.level,
         guideline: spellApi.guideline,
@@ -196,6 +203,62 @@ export async function convertApiToSpell(spellApi: ApiSpellModel): Promise<SpellM
     return checkSpell(result);
 }
 
+/**
+ * Create a new spell in the system.
+ * @param spellModel The spell model. 
+ * @returns The promise of the UUID assigned to the spell.
+ */
+export async function createSpell(spellModel: SpellModel | NewSpellModel) {
+    try {
+        const apiSpell = await convertSpellToApi(spellModel);
+        const headers = new Headers();
+        headers.append("Content-Type", "application/json");
+        headers.append("Accept", "application/json");
+        if (process.env.API_KEY) {
+            headers.append("x-openapi-token", process.env.API_KEY);
+        }
+        return await fetch("http://localhost:" + (process.env.PORT ?? "3000") + "//arm5/spells", {
+            method: "POST",
+            body: JSON.stringify(apiSpell)
+        }).then(
+            (result) => {
+                if (result.ok) {
+                    const uuid = result.json();
+                    logger.info("Created spell with %s UUID: %s", validUUID(uuid) ? "valid": "invalid", uuid);
+                    return checkUUID(uuid);
+                }
+                logger.error("Status: %d: %s", result.status, result.statusText);
+                throw { message: result.statusText, errorCode: result.status };
+            },
+            (error) => {
+                throw error;
+            }
+        )
+    } catch (error) {
+        logger.error(error, "Spell creation failed");
+        throw error;
+    }
+}
+
+export async function storeDbSpells(spells: SpellModel[]) {
+    return await createApiConnection().then(
+        async dbh => {
+            return spells.map(async spell => {
+                const dbSpell = await convertSpellToApi(spell).then( (result) => (JSON.stringify(result)));
+                if (spell.guid) {
+                    dbh.query("INSERT INTO spells(guid, value) VALUES ($1, $2) ON CONFLICT DO UPDATE SET value = $2 WHERE guid = $1", [spell.guid, JSON.stringify(dbSpell)]);
+                } else {
+
+                }
+            })
+        });
+}
+
+/**
+ * Store spells
+ * @param spells The stored spells.
+ * @param altered The altered user interfaces.
+ */
 export async function storeSpells(spells: SpellModel[], altered?: UUID[]) {
 
     if (altered) {
@@ -214,7 +277,7 @@ export async function storeSpells(spells: SpellModel[], altered?: UUID[]) {
                 } else {
                     const uuid = await getUUID();
                     console.log("Adding spell with new uuid %s", uuid);
-                    spells.push({...spell, guid: uuid});
+                    spells.push({ ...spell, guid: uuid });
                     const rindex = reservedUUIDs.indexOf(uuid);
                     reservedUUIDs.splice(rindex, 1);
                 }

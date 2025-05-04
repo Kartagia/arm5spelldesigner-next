@@ -49,6 +49,16 @@ export interface SpellModel {
     target?: RDT<"Target">[];
 
     /**
+     * The size magnitude modifer of the RDT.
+     */
+    size?: RDT<"Size">[];
+
+    /**
+     * Other magnitude modifires.
+     */
+    other?: RDT<string>[];
+
+    /**
      * The traits of the spell. 
      */
     traits?: string[];

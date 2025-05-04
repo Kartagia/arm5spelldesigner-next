@@ -86,7 +86,9 @@ function getInvalidSpellProperties(value: any): { propertyName: string, message?
         }
     )]  as [string, Function][]).forEach( ([prop, validator]:[string, Function]) => {
         try {
-
+            if (!validator(value[prop])) {
+                throw Error("Property name failed validation");
+            }
         } catch (error) {
             invalidProperties.push({
                 propertyName: prop,
@@ -131,7 +133,8 @@ export async function POST(request: Request) {
             async (error) => {
                 if (error === "Not initialized" || error.message === "Not initialized") {
                     // The server api pool is not yet initialized.
-                    const pool = await initApiPool();
+                    logger.info("Initializing api connection pool");
+                    const pool = await initApiPool(undefined);
                     return pool.connect();
                 }
                 throw error;
