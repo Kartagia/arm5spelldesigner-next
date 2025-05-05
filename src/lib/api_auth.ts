@@ -7,10 +7,6 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { validateSession } from './session';
 import pino from 'pino';
-import { redirect } from 'next/dist/server/api-utils';
-import { NextRequest, NextResponse } from 'next/server';
-import { NextURL } from 'next/dist/server/web/next-url';
-import { userInfo } from 'os';
 
 /**
  * Check validity of an api key.
