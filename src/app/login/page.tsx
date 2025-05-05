@@ -21,8 +21,8 @@ export default function LoginPage() {
     ];
 
     return (
-        <form name="login" action={action}>
-        <div className="flex column min-h-100">
+        <form className="flex-item column min-w-100 min-h-100" name="login" action={action}>
+        <div className="flex column min-h-100 min-w-100">
             <header className="header"><h1 className="title">Login with existing account</h1></header>
             <main className="main">
             {
