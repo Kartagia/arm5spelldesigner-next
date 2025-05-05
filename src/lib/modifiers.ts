@@ -1,4 +1,5 @@
 import { UUID } from "node:crypto";
+import { boolean } from "zod";
 
 
 export interface Modifier {
@@ -37,9 +38,107 @@ export interface RDT<TYPE extends string> {
     description?: string;
 
     /**
+     * The subtypes of the rdt. 
+     */
+    subTypes?: string[];
+
+    /**
      * The secondary RDTs the current RDT allows.
      */
     readonly secondaryRDTs: Readonly<UUID[]>;
+}
+
+export function equivalentModifierType( tested: string, other: string): boolean {
+    return tested !== "" && other !== "" && (tested === other || other.startsWith(tested + ".") );
+}
+
+
+interface RdtTypeParseResult {
+    type?: string,
+    subType?: string[]
+}
+
+interface  RdtTypeParseAccumulator {
+    done?: boolean, 
+    result?: RdtTypeParseResult
+}
+
+/**
+ * Equality function determining equality of values.
+ * @param a Compared.
+ * @param b Comparee.
+ * @returns True, if and only if the values are equivalent.
+ */
+type Equality<TYPE>  = (a: TYPE, b: TYPE) => boolean;
+
+/**
+ * The default comparison of values.
+ * @param a The compared. 
+ * @param b The comparee.
+ * @param equality The equality function. Defaults to strict equal.
+ * @returns The comparison result. Negative number, if a < b, positive number, if a > b,
+ * 0, if a is equal to b, and NaN, if values were not comparable. 
+ */
+function defaultComparison<TYPE>(a: TYPE, b:TYPE, equality?: Equality<TYPE>):number {
+    const eql = equality ?? ((a, b) => (a === b));
+    return (eql(a,b) ? 0 : a < b ? -1 : a > b ? 1 : Number.NaN); }
+
+
+/**
+ * Get source list head shared by two lists.
+ * @param source The soruce list.
+ * @param target The other list.
+ * @param comparison The comparison function.
+ * @returns The source list elements contained in the header list.
+ */
+function headList<TYPE>( source: TYPE[], target: TYPE[], comparison: (a: TYPE, b: TYPE) => number = defaultComparison ) {
+    let i = 0; 
+    while (i < Math.min(source.length, target.length) && comparison(source[i], target[i])) {
+        // The types are same.
+        i++;
+    }
+    if (i === source.length) {
+        return source;
+    } else {
+        return source.slice(0, i);
+    }
+}
+
+/**
+ * Get the widest shared type.
+ * @param types The database types.
+ */
+export function getDbSubType( ...types: string[]): RdtTypeParseResult {
+    return types.reduce( (result: RdtTypeParseAccumulator, dbType) => {
+        if (dbType === "") {
+            throw new SyntaxError("Database type cannot be empty!");
+        }
+        if (result.done) {
+            return result;
+        }
+        
+        const [ type, ...subtype] = dbType.split(".");
+        if (result.result && result.result.type !== type) {
+            return {done: true}
+        } else if (result.result && result.result.subType && (result.result.subType?.length ?? 0) >= 0 ) {
+            // The sutype checking is necessary.
+            return { result: {type: type, subType: headList(subtype, result.result.subType)}}
+        } else {
+            // WE are first result
+            return {result: {type, subtype}};
+        }
+    }, {} as RdtTypeParseAccumulator ).result ?? {};
+}
+
+export function equivalentType<TYPE extends string>( tested: RDT<TYPE>, other: RDT<TYPE>): boolean {
+    if (tested.type !== other.type || (!tested.subTypes && (other.subTypes?.length ?? 0 > 0 ) ) ) {
+        // The types cannot be equivalent.
+        return false; 
+    }
+
+    // If the tested subtype is totally included in the subtype 
+    const subType = headList(tested.subTypes ?? [], other.subTypes ?? []);
+    return subType === tested.subTypes;
 }
 
 export function validUUID(value: any) {
@@ -94,8 +193,28 @@ export function AbstractRDT<TYPE extends string>(type: TYPE,
         description,
         guid,
         type, 
-        secondaryRDTs: generateSecondaryRDTs(secondaryRdts)
+        secondaryRDTs: generateSecondaryRDTs(secondaryRdts),
+        
     }
+}
+
+/**
+ * String format of one rdt.
+ * @param rdt The rdt.
+ * @returns The string representation of the rdt.
+ */
+export function rdtToString<TYPE extends string>( rdt: RDT<TYPE>) {
+    return `${rdt.type}:${rdt.name}(${rdt.modifier})`;
+}
+
+/**
+ * String format of multiple rdts.
+ * @param rdts The rdts.
+ * @param prefix The optional prefix of the result.
+ * @returns The string representation of the rdt.
+ */
+export function rdtsToString<TYPE extends string>(rdts: RDT<TYPE>[], prefix?: string) {
+    return `${prefix ? prefix + ":" : ""}${rdts.map( rdt => (`${rdt.name}(${rdt.modifier})`)).join("/")}`
 }
 
 

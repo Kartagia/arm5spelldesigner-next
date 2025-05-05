@@ -62,16 +62,20 @@ export type ErrorType<TYPE> = {
  */
 export type SignupFormState = {
     values?: Record<"email"|"password"|"confirmPassword"|"displayName", string>,
-    errors?: ErrorType<{name?: string, password?: string, confirmPassword?: string, displayName?: string}>,
+    errors?: ErrorType<{name?: string[], password?: string[], confirmPassword?: string[], displayName?: string[]}>,
     origin?: string,
 } | undefined;
+
+
+
+export type LoginFormParams = Record<"email"|"password", string>;
 
 /**
  * The login form state.
  */
 export type LoginFormState = {
-    values?: Record<"email"|"password", string>,
-    errors?: ErrorType<{email?: string, password?: string, generic?: string}>,
+    values?: Partial<LoginFormParams>,
+    errors?: ErrorType<{email?: string[], password?: string[]}>,
     origin?: string,
 } | undefined;
 

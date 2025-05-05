@@ -14,5 +14,5 @@ export default async function LoggedLayout({children}:Readonly<{
     children: React.ReactNode;
   }>) {
 
-    return <>{children}</>;
+    return <>{children}</>
   }

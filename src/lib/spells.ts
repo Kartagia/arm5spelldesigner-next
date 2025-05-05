@@ -1,5 +1,7 @@
 import { randomUUID } from "crypto";
-import { RDT } from "./modifiers";
+import { RDT, validUUID } from "./modifiers";
+
+export type SpellLevel = "Generic"|number;
 
 export interface SpellModel {
 
@@ -22,7 +24,7 @@ export interface SpellModel {
     /**
      * The level of the spell.
      */
-    level: number | "Generic";
+    level: SpellLevel;
     /**
      * The technique abbreviation.
      */
@@ -47,10 +49,81 @@ export interface SpellModel {
     target?: RDT<"Target">[];
 
     /**
+     * The size magnitude modifer of the RDT.
+     */
+    size?: RDT<"Size">[];
+
+    /**
+     * Other magnitude modifires.
+     */
+    other?: RDT<string>[];
+
+    /**
      * The traits of the spell. 
      */
     traits?: string[];
 
+}
+
+export function validRDT(value: any) : boolean {
+    if (value != null && typeof(value) === "object") {
+
+        if (["type", "name"].every( (prop) => (prop in value && typeof (value[prop]) === "string" && value[prop].trim()) )) {
+            // The RDT has type and name.
+            if ( !("modifier" in value) || Number.isSafeInteger(Number(value.modifier)) 
+            
+                && !("secondaryRDTs" in value) || value.secondaryRDTs.every(
+                    validUUID
+                )
+            ) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * Check validity of a spell. 
+ * @param value 
+ * @param options 
+ */
+export function checkSpell(value: any, options: {message?: string} = {}) : SpellModel {
+    const {message = "Invalid spell"} = options;
+    if (value != null && typeof(value) === "object" && !Array.isArray(value)) {
+        const RDTOptions: (keyof SpellModel)[] = ["range", "duration", "target"];
+
+        if (RDTOptions.some( (prop) => (prop in value && (!Array.isArray(value[prop]) || value[prop].some( (rdt: any) => (!validRDT(rdt))) )) ) ) {
+            // Some of thE RDTs was invalid.
+            throw new SyntaxError(message, {cause: `Invalid RDT property`})
+        }
+
+        ["form", "technique"].forEach( (prop) => {
+            if (! (prop in value) ) {
+                throw SyntaxError(message, {cause: `Missing required property ${prop}`});
+            } else if (!value[prop] || !value[prop]?.matches(/^[A-Z][a-z]{1,4}$$/) ) {
+                throw SyntaxError(message, {cause: `Invalid property ${prop}`});
+            }
+        });
+        if (!("level" in value)) {
+
+        } else if (value.level !== "Generic" && !Number.isSafeInteger(value.level)) {
+            throw new SyntaxError(message, { cause: "Invalid property level"});            
+        }
+        if ("description" in value && typeof(value.description !== "string") ) {
+            throw new SyntaxError(message, { cause: "Invalid property description"});
+        }
+
+        return {
+            name: value.name, technique: value.technique, form: value.form, range: value.range, duration: value.duration, target: value.target,
+            description: value.description,
+            guid: value.guid,
+            level: value.level,
+            guideline: value.guideline
+        };
+    } 
+        
+    throw new SyntaxError(message);
 }
 
 /**
@@ -107,10 +180,6 @@ export function getSpellKey(spell: SpellModel) {
     }
 }
 
-
-export async function getAllSpells(): Promise<SpellModel[]> {
-    return Promise.resolve([{ name: "Test spell one", level: 15, form: "Te", technique: "Cr", guideline: randomUUID().toString() }]);
-}
 export interface ArtModel {
     guid?: string;
     art: string;
@@ -149,4 +218,40 @@ export function getGuidelineValue(guidelines: GuidelineModel[], value: Guideline
         return guidelines.find((cursor) => (cursor === value));
     }
 }
+/**
+ * The RDT set.
+ */
 
+
+export interface RDTSet {
+    range: RDT<"Range">[];
+    duration: RDT<"Duration">[];
+    target: RDT<"Target">[];
+    totalModifier: number;
+}
+export function createRDTSet(range: RDT<"Range">[], duration: RDT<"Duration">[], target: RDT<"Target">[]): RDTSet {
+
+    return {
+        range,
+        duration,
+        target,
+        get totalModifier() {
+            return [...this.range, ...this.duration, ...this.target].reduce(
+                (result, rdt) => (result + rdt.modifier), 0);
+        }
+    };
+}
+
+export function deriveRDTSet<TYPE extends "Range"|"Duration"|"Target">(source: RDTSet, type: TYPE, value: RDT<TYPE>[]) {
+    
+    switch (type) {
+        case "Range":
+            return createRDTSet(value.filter( rdt => (rdt.type === type)) as RDT<"Range">[], source.duration, source.target);
+        case "Duration":
+            return createRDTSet(source.range, value.filter( rdt => (rdt.type === type)) as RDT<"Duration">[], source.target);
+        case "Target":
+            return createRDTSet(source.range, source.duration, value.filter( rdt => (rdt.type === type)) as RDT<"Target">[]);
+        default: 
+            return source;
+    }
+}

@@ -1,5 +1,6 @@
 "use client";
 import { signup } from "@/actions/auth.actions";
+import Link from "next/link";
 import { useActionState, useId } from "react";
 
 
@@ -31,7 +32,7 @@ export default function SignupPage() {
 
     return (
     <form action={action}>
-        <div>
+        <div className="flex column min-h-100">
             <header className="header"><h1 className="title">Create a new account</h1></header>
             <main className="main">
             {
@@ -45,6 +46,7 @@ export default function SignupPage() {
             </main>
             <footer className="footer">
                 <button disabled={pending} type="submit">Create account</button>
+                <Link href="/login" className="button">Login with existing account</Link>
             </footer>
         </div>
     </form>);

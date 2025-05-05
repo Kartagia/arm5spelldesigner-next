@@ -2,7 +2,6 @@
 import { login } from "@/actions/auth.actions";
 import Link from "next/link";
 import { useActionState, useId } from "react";
-import { LoginFormState} from "@/lib/definitions";
 
 
 export default function LoginPage() {
@@ -19,12 +18,12 @@ export default function LoginPage() {
         name: "password",
         type: "password"
     }
-    ]
+    ];
 
     return (
-    <form action={action}>
-        <div>
-            <header className="header"><h1 className="title">Create a new account</h1></header>
+        <form name="login" action={action}>
+        <div className="flex column min-h-100">
+            <header className="header"><h1 className="title">Login with existing account</h1></header>
             <main className="main">
             {
                 fields.map( field => (<div key={field.name}><div key={field.name} className="form-field">
@@ -32,8 +31,10 @@ export default function LoginPage() {
                     <input name={field.name} id={`${id}:${field.name}`} type={field.type} defaultValue={state?.values && field.name in state.values ? (
                         (state?.values?.[field.name] as string) ?? "") : ""}></input>
                 </div>
-                { (state?.errors?.[field.name] as (string[]|undefined)) && (<div className="error form-field"><ul>{state.errors[field.name].map( (error: string[]) => (<li key={error.join("")}>{error}</li>))}</ul></div>)}</div>
+                { state?.errors?.[field.name] !== undefined && (state?.errors?.[field.name]?.length ?? 0) > 0 && (<div className="error form-field"><ul>{(state?.errors?.[field.name] ?? []).map( 
+                    (error: string) => (<li key={error}>{error}</li>))}</ul></div>)}</div>
             ))
+            
             }
             </main>
             <footer className="footer">
@@ -41,5 +42,7 @@ export default function LoginPage() {
                 <Link href="/signup" className="button">Create a new account</Link>
             </footer>
         </div>
-    </form>);
+        </form>
+
+        );
 }

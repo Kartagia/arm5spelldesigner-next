@@ -5,20 +5,23 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start -p $PORT || next start",
+    "lint": "next lint",
+    "heroku:pg:dump": "heroku ",
+    "dbadmin": "tsc && node ./script/dbadmin"
   },
   "dependencies": {
     "@lucia-auth/adapter-postgresql": "^3.1.2",
     "lucia": "^3.2.2",
     "next": "^15.2.4",
     "pg": "^8.14.1",
+    "pino": "^9.6.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^1.40.0",
+    "@dotenvx/dotenvx": "^1.42.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.11.11",

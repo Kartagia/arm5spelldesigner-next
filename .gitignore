@@ -55,7 +55,8 @@ package-lock.json
 .vscode
 
 # Compiled scripts.
-script/
+script
+!src/script
 
 # Ignore sqls
 *.sql

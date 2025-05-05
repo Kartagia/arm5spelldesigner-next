@@ -5,7 +5,7 @@ import { UUID } from "crypto";
 /**
  * The default RDT model contais ranges, durations, and targets.
  */
-export type RDTModel = RDT<"Range"|"Duration"|"Target">;
+export type RDTModel = RDT<string>;
 
 /**
  * Get RDT value.

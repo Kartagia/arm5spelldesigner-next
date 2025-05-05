@@ -1,0 +1,4 @@
+GET http://localhost:3000/arm5
+Content-Type: application/json
+x-openapi-token: $DATA_API_KEY
+

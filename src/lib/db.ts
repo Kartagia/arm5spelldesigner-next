@@ -1,4 +1,6 @@
-import { Client, escapeIdentifier, escapeLiteral, Pool, PoolClient, PoolConfig, PoolOptions, QueryResult, QueryResultRow } from 'pg';
+import 'server-only';
+import { Client, escapeIdentifier, escapeLiteral, Pool, PoolClient, PoolConfig, QueryResult, QueryResultRow } from 'pg';
+import { getApiDatabaseProperties, getAuthDatabaseProperties, getTestAuthDatabaseProperties } from './dbConfig';
 export { escapeIdentifier, escapeLiteral } from 'pg';
 /**
  * The database connection module.
@@ -12,61 +14,56 @@ export { escapeIdentifier, escapeLiteral } from 'pg';
 export const NOT_CONNECTED_ERROR = new Error("Not connected");
 
 /**
- * Get the pool options for the authentication database.
- * @returns The pool options for authentication database.
- */
-export function getAuthDatabaseProperties(): Partial<PoolOptions> {
-    if (process.env.AUTH_CONNECT) {
-        return {
-            connectionString: process.env.AUTH_CONNECT
-        }
-    } else {
-
-        return {
-            database: process.env.AUTH_DATABASE,
-            user: process.env.AUTH_USER,
-            host: process.env.AUTH_HOST,
-            port: Number(process.env.AUTH_PORT ?? "5432"),
-            password: process.env.AUTH_PASSWORD,
-        };
-    }
-}
-
-/**
- * Get the pool options for the authentication database.
- * @returns The pool options for authentication database.
- */
-export function getTestAuthDatabaseProperties(): Partial<PoolOptions> {
-    if (process.env.VITE_AUTH_CONNECT) {
-        return {
-            connectionString: process.env.VITE_AUTH_CONNECT
-        }
-    } else {
-
-        return {
-            database: process.env.VITE_AUTH_DATABASE,
-            user: process.env.VITE_AUTH_USER,
-            host: process.env.VITE_AUTH_HOST,
-            port: Number(process.env.VITE_AUTH_PORT ?? "5432"),
-            password: process.env.VITE_AUTH_PASSWORD,
-        };
-    }
-}
-
-
-/**
  * The connection pool for accessing authentication.
  */
-var authPool: Pool | undefined = (process.env.NODE_ENV === "test" ? new Pool(getTestAuthDatabaseProperties()): new Pool(getAuthDatabaseProperties()));
+var authPool: Pool | undefined = undefined;
+try {
+    await initAuthPool((process.env.NODE_ENV === "test" ? getTestAuthDatabaseProperties() : getAuthDatabaseProperties()));
+} catch (error) {
+    console.error("Could not initialize authentication pool!", error);
+}
+/**
+ * Initialize a connection pool.
+ * @param config The configuration of the pool. An undefined configuration implies use of the current authentication pool, if any
+ * exists.
+ * @param defaultConfig The default configuration for the pool. 
+ * @param current The current pool.
+ * @returns If the configuration is defined, and the current pool is not ended pool, returns the current pool.
+ * Otherwise returns a new pool created with configuration. 
+ */
+export function initPool(config: Partial<PoolConfig> | undefined = undefined, defaultConfig: PoolConfig, current?: Pool): Promise<Pool> {
+    if (config != undefined || current === undefined || current.ended) {
+        // Creating new pool replacing current pool and closing current pool.
+        if (current) {
+            return current.end().then(() => {
+                return new Pool({ ...defaultConfig, ...(config ?? {}) });
+            },
+                (error) => {
+                    console.error("%s: Closing old pool failed", (new Date()).toISOString());
+                    return new Pool({ ...defaultConfig, ...(config ?? {}) });
+                }
+            );
+        } else {
+            return Promise.resolve(new Pool({ ...defaultConfig, ...(config ?? {}) }));
+        }
+    } else {
+        return Promise.resolve(current);
+    }
+}
 
 /**
  * Initialize the authentication pool.
- * @param config The configuration of the pool.
+ * @param config The configuration of the pool. An undefined configuration implies use of the current authentication pool, if any
+ * exists.
  * @returns The promise of the assigned pool. 
  */
-export function initAuthPool(config: Partial<PoolConfig> = {}): Promise<Pool> {
-    authPool = new Pool({ ...getAuthDatabaseProperties(), ...config });
-    return Promise.resolve(authPool);
+export async function initAuthPool(config: Partial<PoolConfig> | undefined): Promise<Pool> {
+    return initPool(config, getAuthDatabaseProperties(), authPool).then(
+        (result) => {
+            authPool = result;
+            return result;
+        }
+    )
 }
 
 /**
@@ -78,26 +75,6 @@ export function createAuthConnection() {
         return authPool.connect();
     } else {
         return Promise.reject(NOT_CONNECTED_ERROR);
-    }
-}
-
-/**
- * Get the pool options for the api database.
- * @returns The pool options for api database.
- */
-export function getApiDatabaseProperties(): Partial<PoolOptions> {
-    if (process.env.DATA_CONNECT) {
-        return {
-            connectionString: process.env.DATA_CONNECT
-        }
-    } else {
-        return {
-            database: process.env.DATA_DATABASE,
-            user: process.env.DATA_USER,
-            host: process.env.DATA_HOST,
-            port: Number(process.env.DATA_PORT ?? "5432"),
-            password: process.env.DATA_PASSWORD,
-        };
     }
 }
 
@@ -334,9 +311,13 @@ var apiPool: Pool | undefined = undefined;
  * @param config The configuration of the pool.
  * @returns The promise of the assigned pool. 
  */
-export function initApiPool(config: Partial<PoolConfig> = {}): Promise<Pool> {
-    apiPool = new Pool({ ...getApiDatabaseProperties(), ...config });
-    return Promise.resolve(apiPool);
+export function initApiPool(config: Partial<PoolConfig> | undefined = undefined): Promise<Pool> {
+    return initPool(config, getApiDatabaseProperties(), apiPool).then(
+        (result) => {
+            apiPool = result;
+            return result;
+        }
+    );
 }
 
 

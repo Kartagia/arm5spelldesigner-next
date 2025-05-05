@@ -1,5 +1,5 @@
 import { ArtModel, GuidelineModel, NewSpellModel, SpellModel } from "@/lib/spells";
-import { SelectRDTComponent } from "./SelectRDTs";
+import { RDTModel, SelectRDTComponent } from "./SelectRDTs";
 import { RDT } from "@/lib/modifiers";
 import { SelectArts } from "./SelectArts";
 import UncontrolledSpellEditor from "./UncontrolledSpellEditor";
@@ -40,7 +40,7 @@ export interface SpellEditorProperties {
     /**
      * The RDTs available for the spell in addition to the RDTs chosen by the value.
      */
-    allRDTs: RDT<"Range"|"Duration"|"Target">[];
+    allRDTs: RDT<"Range"|"Duration"|"Target"|string>[];
 }
 
 /**
@@ -74,7 +74,7 @@ export interface SpellEditorEvents {
      * @param newRDTs the new RDTs 
      * @param type The type of the RDT change, if only certain RDTs are affected.
      */
-    onRDTChange?: (newRDTs: RDT<"Range"|"Duration"|"Target">[], type?: string) => void;
+    onRDTChange?: (newRDTs: RDTModel[], type?: string) => void;
 
     /**
      * The spell size has changed.
@@ -104,7 +104,7 @@ export function ControlledSpellEditor(props: Required<Pick<SpellEditorProperties
         }
     }
 
-    const handleRDTChange = (type: string|undefined, newValue: RDT<"Range"|"Duration"|"Target">[]) => {
+    const handleRDTChange = (type: string|undefined, newValue: RDTModel[]) => {
         if (props.onRDTChange ) {
             props.onRDTChange(newValue, type);
         }

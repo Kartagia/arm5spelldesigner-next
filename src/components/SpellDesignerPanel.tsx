@@ -39,7 +39,7 @@ export interface SpellDeignerProperties {
     /**
      * The RDTs available.
      */
-    rdts: RDT<"Range"|"Duration"|"Target">[];
+    rdts: RDT<"Range"|"Duration"|"Target"|string>[];
 
     /**
      * THe spells available. 

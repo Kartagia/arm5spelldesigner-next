@@ -1,7 +1,93 @@
 
-import { PoolClient } from 'pg';
-import { createApiConnection, getAuthDatabaseProperties } from "./db";
-import { randomBytes, pbkdf2, timingSafeEqual, randomUUID } from 'node:crypto';
+import 'server-only';
+import { Client, PoolClient } from 'pg';
+import { randomBytes, pbkdf2, timingSafeEqual, randomUUID, pbkdf2Sync } from 'node:crypto';
+import { Console, ConsoleConstructorOptions } from 'node:console';
+
+class DebugConsole extends Console {
+
+    logLevels:string[] = ["all", "trace", "debug", "info", "warn", "error", "fatal", "none"];
+    
+    debugLevel : number = 0;
+
+    module: string = ""; 
+
+    debugLevelName(level: number): string  {
+
+        if (Number.isSafeInteger(level) && level >= 0) {
+            return this.logLevels[Math.floor(level/10)] ?? "none";
+        } else {
+            return "unknown";
+        }
+    };
+
+    getDebugLevel(name: string): number {
+        return this.logLevels.indexOf(name)*10;
+    }
+
+
+    constructor(options: ConsoleConstructorOptions & {level?: number|string, module?: string}) {
+        super(options);
+        this.debugLevel = (typeof options.level === "string" ? this.getDebugLevel(options.level): options.level ?? 0 );
+        this.module = options.module ?? "";
+
+    }
+
+    trace(template: string, ...args: any[]) {
+        const level = 10;
+        if (this.debugLevel >= level ) {
+            super.trace("[%s][%s][%s]"+ template, this.timeStamp, this.debugLevelName(level), ...args);
+        }
+    }
+
+
+    debug(template: string, ...args: any[]) {
+        const level = 20;
+        if (this.debugLevel >= level ) {
+            super.debug("[%s][%s][%s]"+ template, this.timeStamp, this.debugLevelName(level), ...args);
+        }
+    }
+
+    info(template: string, ...args: any[]) {
+        const level = 30;
+        if (this.debugLevel >= level ) {
+            super.info("[%s][%s][%s]"+ template, this.timeStamp, this.debugLevelName(level), ...args);
+        }
+    }
+
+    warn(template: string, ...args: any[]) {
+        const level = 40;
+        if (this.debugLevel >= level ) {
+            super.warn("[%s][%s][%s]"+ template, this.timeStamp, this.debugLevelName(level), ...args);
+        }
+    }
+    error(template: string, ...args: any[]) {
+        const level = 50;
+        if (this.debugLevel >= level ) {
+            super.error("[%s][%s][%s]"+ template, this.timeStamp, this.debugLevelName(level), ...args);
+        }
+    }
+    fatal(template: string, ...args: any[]) {
+        const level = 60;
+        if (this.debugLevel >= level ) {
+            super.error("[%s][%s][%s]"+ template, this.timeStamp, this.debugLevelName(level), ...args);
+        }
+    }
+    log(template: string, ...args: any[]) {
+        return this.info(template, ...args);
+    }
+
+};
+
+let logger : DebugConsole = new DebugConsole({stdout: process.stdout, stderr: process.stderr, module: "auth"});
+
+export function setLogLevel(logLevel: number): void{
+    logger.debugLevel = logLevel;
+}
+
+export function getLogLevel(): number {
+    return logger.debugLevel;
+}
 
 /**
  * The authentication related configuration.
@@ -48,15 +134,14 @@ export const EmailField = "email";
  */
 export const PasswordField = "password";
 
-
 /**
- * Validate an email address.
- * @param value The tested value.
- * @returns True, if and only if the email is a valid email address.
+ * Hash a token.
+ * @param value The token value.
+ * @returns The token value hashed.
  */
-export function validEmail(value: string): boolean {
+export async function hashToken( value: string ) {
 
-    return /^(?:[\w-]+\.)*(?:[\w-]+)@(?:\w+\.)*(?:\.\w{2,})$/.test(value);
+    return pbkdf2Sync(value, "", config.iterations, config.keyLen, config.digest).toString("base64");
 }
 
 /**
@@ -150,20 +235,27 @@ export function validPassword(value: string): boolean {
 
 /**
  * Changes the password of the user and update credentials.
+ * If the operation is within transaction, the rollback is performed on error.
+ * @param dbh The database client. 
  * @param userId The user identifier.
  * @param password The password. 
  * @param transaction The database transaction into which the operation belongs.
+ * - String indicates the name of the savepoint. 
+ * - Boolean true indicates the current transaction is operated.
  * Defaults to a new autocommited transaction.
+ * - A null value indicates the handle is closed at teh end of the operation. 
  * @returns The promise of completion.
  */
-export async function setPassword(userId: string, password: string,
-    transaction: PoolClient | undefined = undefined): Promise<void> {
+export async function setPassword(dbh: Client|PoolClient, userId: string, password: string,
+    transaction: boolean| string | null = null): Promise<void> {
+    if (typeof transaction === "string" && !/^\w+$/.test(transaction)) {
+        // Invalid save point 
+        throw SyntaxError("Invalid savepoint");
+    }
+
     return new Promise(async (resolve, reject) => {
-        const dbh = transaction ?? (await createApiConnection().then(
-            async conn => { await conn.connect(); return conn },
-            error => { throw error }));
         try {
-            if (!transaction) {
+            if (transaction === false) {
                 await dbh.query("start transaction");
             }
             const salt = await generateSalt();
@@ -172,16 +264,27 @@ export async function setPassword(userId: string, password: string,
                 "VALUES ($1, $2, $3)",
                 [userId, await hashPassword(password, salt), salt]
             );
+            logger.log("The password set for user %s", userId);
             if (!transaction) {
                 await dbh.query("commit");
             }
         } catch (error) {
             // Error handling.
-            console.error("setPassword: Coudl not update user credentials", error);
+            logger.error("setPassword: Could not update user credentials", error);
+            if (typeof transaction == "string") {
+                dbh.query("rollback to " + transaction);
+            }
+            if (transaction !== false && transaction !== null) {
+                dbh.query("rollback");
+            }
             throw error;
         } finally {
-            if (!transaction) {
-                dbh.release();
+            if (transaction === null) {
+                if ("release" in dbh) {
+                    dbh.release();
+                } else {
+                    dbh.end();
+                }
             }
         }
     });
