@@ -4,9 +4,11 @@ import { ChangeEventHandler } from "react";
 
 
 
-export function SelectArts({ forms = [], techniques = [], readonly = false, technique = undefined, form = undefined, controlled = false, onSelect = undefined
+export function SelectArts({ forms = [], techniques = [], readonly = false, technique = undefined, form = undefined, controlled = false, onSelect = undefined,
+    ...props
 }: {
     forms: ArtModel[]; techniques: ArtModel[]; readonly?: boolean; technique?: string; form?: string; controlled?: boolean;
+    className?: string
 } &
     { onSelect?: (selectedArt: ArtModel) => void; }) {
 
@@ -38,7 +40,7 @@ export function SelectArts({ forms = [], techniques = [], readonly = false, tech
     };
 
     return (
-        <div className="flex row">
+        <div className={props.className ?? "row flex"}>
             <div className="flex-item">
             <label className={"flex-item"}>Form</label>
             <select className="flex-item border" disabled={readonly} name="technique" onChange={handleSelectTechnique} value={controlled ? technique : undefined} defaultValue={controlled ? undefined : technique}>

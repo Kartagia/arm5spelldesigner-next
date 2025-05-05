@@ -265,12 +265,12 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
             onSelect={ (e) => { e.type === "Form" ? handleFormChange(e) : handleTechniqueChange(e)}}
         forms={props.forms ?? []} form={form} techniques={props.techniques ?? []} technique={technique} /></div></> 
         }
-        </div>
         <div className="form-field">
             <label>Level</label>
         <SelectLevel onSelect={ (newLevel) => {setSpell({...spell, level: newLevel}); setLevel(newLevel)} } value={level} />
         </div>
-        <RDTPanel className={"flex-item"} rdts={props.allRDTs} onChange={handleRDTChange}
+        </div>
+        <RDTPanel className={"flex-item justify-between"} rdts={props.allRDTs} onChange={handleRDTChange}
         value={rdt}></RDTPanel>
 
             <div className="form-field flex column">
