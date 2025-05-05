@@ -1,3 +1,4 @@
+import 'server-only';
 import { Client, escapeIdentifier, escapeLiteral, Pool, PoolClient, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 import { getApiDatabaseProperties, getAuthDatabaseProperties, getTestAuthDatabaseProperties } from './dbConfig';
 export { escapeIdentifier, escapeLiteral } from 'pg';
