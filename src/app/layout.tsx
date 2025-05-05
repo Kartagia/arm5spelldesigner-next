@@ -37,10 +37,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${caudexSans.variable} ${caudexSansBold.variable} flex column min-h-100`}
+        className={`${caudexSans.variable} ${caudexSansBold.variable} font-[family-name:var(--font-sans)] flex column min-h-100`}
       >
         <header className="header"><h1 className="title"><Suspense>{metadata.title?.toString()}</Suspense></h1></header>
-        <main className="main">{children}</main>
+        <main className="main flex">{children}</main>
         <footer className="footer"><Image src="/next.svg" alt="NextJS logo" width={200} height={60}/></footer>
       </body>
     </html>
