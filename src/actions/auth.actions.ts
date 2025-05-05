@@ -1,6 +1,6 @@
 "use server";
 
-import { createApiKey, EmailField, PasswordField, validEmail, validPassword } from "@/lib/auth";
+import { createApiKey, EmailField, PasswordField, validPassword } from "@/lib/auth";
 import { ErrorStruct, SignupFormSchema, SignupFormState, LoginFormState, LoginFormSchema } from "@/lib/definitions";
 import { createSession, createSessionCookie, logout as endSession } from "@/lib/session";
 import { createUser, loginUser } from "@/lib/users";
