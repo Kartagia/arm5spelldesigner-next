@@ -331,25 +331,3 @@ export async function storeSpells(spells: SpellModel[], altered?: UUID[]) {
 }
 
 
-/**
- * The RDT set. 
- */
-export interface RDTSet {
-    range: RDT<"Range">[],
-    duration: RDT<"Duration">[],
-    target: RDT<"Target">[],
-    totalModifier: number
-}
-
-export function createRDTSet( range: RDT<"Range">[], duration: RDT<"Duration">[], target: RDT<"Target">[]):RDTSet {
-
-    return {
-        range,
-        duration,
-        target,
-        get totalModifier() {
-            return [...this.range, ...this.duration, ...this.target].reduce( 
-                (result, rdt) => ( result + rdt.modifier), 0)
-        }
-    };
-}

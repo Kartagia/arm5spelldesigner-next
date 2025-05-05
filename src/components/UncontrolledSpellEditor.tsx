@@ -2,13 +2,14 @@
 
 import { MouseEventHandler, RefObject, useEffect, useRef, useState } from "react";
 import { SpellEditorProperties, SpellEditorEvents } from './SpellEditor';
-import { ArtModel, GuidelineModel, NewSpellModel, SpellModel } from '@/lib/spells';
+import { ArtModel, createRDTSet, deriveRDTSet, GuidelineModel, NewSpellModel, SpellModel } from '@/lib/spells';
 import { SelectGuideline } from "./SelectGuideline";
 import { SelectArts } from "./SelectArts";
-import { checkUUID, validUUID } from "@/lib/modifiers";
+import { checkUUID, RDT, validUUID } from "@/lib/modifiers";
 import styles from "./UncotrolledSpellEditor.module.css";
 import { storeDbSpells } from "@/data/spells";
 import { createSpell as createApiSpell } from "@/actions/spells.actions"
+import { RDTPanel } from "./RDTPanel";
 
 /**
  * Log a message along with a function.
@@ -22,14 +23,17 @@ function logFn<TYPE>(value: TYPE, message?: string, ...optionalValues: any[]): T
     return value;
 }
 
-function createNewSpell(forms: ArtModel[] = [], techniques: ArtModel[] = []): Partial<SpellModel> {
+function createNewSpell(forms: ArtModel[] = [], techniques: ArtModel[] = [], rdts: RDT<string>[]): Partial<SpellModel> {
     const result: Partial<SpellModel> = {
         name: "",
         level: 1,
         guideline: undefined,
         form: techniques[0]?.abbrev,
         technique: forms[0]?.abbrev,
-        description: undefined
+        description: undefined,
+        range: rdts.filter( rdt => (rdt.type === "Range")).slice(0,1) as RDT<"Range">[],
+        duration: rdts.filter( rdt => (rdt.type === "Duration")).slice(0,1) as RDT<"Duration">[],
+        target: rdts.filter( rdt => (rdt.type === "Target")).slice(0,1) as RDT<"Target">[]
     };
     return result;
 }
@@ -98,24 +102,26 @@ export function SelectLevel(props: SelectLevelProps) {
  */
 export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperties, "value"> & SpellEditorEvents) {
     const [defaultSpell, setDefaultSpell] = useState(props.defaultValue);
-    const [spell, setSpell] = useState(props.defaultValue ?? createNewSpell(props.forms, props.techniques));
+    const [spell, setSpell] = useState(props.defaultValue ?? createNewSpell(props.forms, props.techniques, props.allRDTs));
     const [level, setLevel] = useState(spell.level);
     const [form, setForm] = useState(spell.form);
     const [technique, setTechnique] = useState(spell.technique);
     const [description, setDescription] = useState(spell.description);
     const [newSpellName, setNewSpellName] = useState("");
+    const [rdt, setRDT] = useState(createRDTSet(spell.range ?? [], spell.duration ?? [], spell.target ?? []));
     useEffect(() => {
         console.log("Check if important properties has changed");
         if (props.defaultValue !== defaultSpell) {
             console.log("Default spell has changed");
             setDefaultSpell(props.defaultValue);
-            const newSpell = props.defaultValue ?? createNewSpell(props.forms, props.techniques);
+            const newSpell = props.defaultValue ?? createNewSpell(props.forms, props.techniques, props.allRDTs);
             setSpell(newSpell);
             setTechnique(newSpell.technique);
             setForm(newSpell.form);
             setLevel(newSpell.level);
             setDescription(newSpell.description);
             setNewSpellName("");
+            setRDT(createRDTSet(newSpell.range ?? [], newSpell.duration ?? [], newSpell.target ?? []))
             console.log("Descrioption %s and %s", newSpell.description ?? "[NO DESCRIPTION]", description ?? "[NO DESCRIPTION]")
         }
     }, [props])
@@ -203,7 +209,7 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
             console.log("No spell to commit!");
         }
         console.log("Reseting the dialog")
-        setSpell(createNewSpell());
+        setSpell(createNewSpell(props.forms, props.techniques, props.allRDTs));
         setNewSpellName("");
     };
 
@@ -211,6 +217,36 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
         if (spell) {
             setSpell({...spell, description: newDesc});
             setDescription(newDesc);
+        }
+    }
+
+    function handleRDTChange<TYPE extends string>(name: string, type: TYPE, newValue: RDT<TYPE>[]) {
+        switch (type) {
+            case "Range":
+                setSpell( (current) => {
+                    current.range = newValue as RDT<"Range">[];
+                    return {...current};
+                } );
+                setRDT( (current) => deriveRDTSet(current, "Range", newValue as RDT<"Range">[]) );
+                
+                break;
+            case "Duration":
+                setSpell( (current) => {
+                    current.duration = newValue as RDT<"Duration">[];
+                    return {...current};
+                } );
+                setRDT( (current) => deriveRDTSet(current, "Duration", newValue as RDT<"Duration">[]) );
+                break;
+            case "Target":
+                setSpell( (current) => {
+                    current.target = newValue as RDT<"Target">[];
+                    return {...current};
+                } );
+                setRDT( (current) => deriveRDTSet(current, "Target", newValue as RDT<"Target">[]) );
+                break;
+
+            default:
+                console.log("Unknown RDT variable %s", name);
         }
     }
 
@@ -234,8 +270,11 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
             <label>Level</label>
         <SelectLevel onSelect={ (newLevel) => {setSpell({...spell, level: newLevel}); setLevel(newLevel)} } value={level} />
         </div>
+        <RDTPanel className={"flex-item"} rdts={props.allRDTs} onChange={handleRDTChange}
+        value={rdt}></RDTPanel>
+
             <div className="form-field flex column">
-                <label className="HFill">Description</label>
+                <label className="HFill flex-item">Description</label>
 
             <div className={styles.HFill} >
             
@@ -250,7 +289,7 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
         <footer className="footer">
             <button className="flex-item" disabled={incompleteSpell(spell.name ? spell : {...spell, name: newSpellName})} name="commit" onClick={handleCommitChanges}>{props.defaultValue ? "Confirm changes" : "Create spell"}</button>
             <button className="flex-item" name="default" onClick={() => {
-                setSpell(defaultSpell ?? createNewSpell());
+                setSpell(defaultSpell ?? createNewSpell(props.forms, props.techniques, props.allRDTs));
                 setLevel(defaultSpell?.level);
                 setTechnique(defaultSpell?.technique);
                 setForm(defaultSpell?.form);
@@ -260,7 +299,7 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
                 if (props.onCancel) {
                     props.onCancel();
                 }
-                const newSpell = createNewSpell(props.forms, props.techniques);
+                const newSpell = createNewSpell(props.forms, props.techniques, props.allRDTs);
                 setSpell(newSpell);
                 setLevel(newSpell.level);
                 setTechnique(newSpell.technique);

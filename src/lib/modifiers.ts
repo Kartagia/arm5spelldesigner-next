@@ -193,8 +193,28 @@ export function AbstractRDT<TYPE extends string>(type: TYPE,
         description,
         guid,
         type, 
-        secondaryRDTs: generateSecondaryRDTs(secondaryRdts)
+        secondaryRDTs: generateSecondaryRDTs(secondaryRdts),
+        
     }
+}
+
+/**
+ * String format of one rdt.
+ * @param rdt The rdt.
+ * @returns The string representation of the rdt.
+ */
+export function rdtToString<TYPE extends string>( rdt: RDT<TYPE>) {
+    return `${rdt.type}:${rdt.name}(${rdt.modifier})`;
+}
+
+/**
+ * String format of multiple rdts.
+ * @param rdts The rdts.
+ * @param prefix The optional prefix of the result.
+ * @returns The string representation of the rdt.
+ */
+export function rdtsToString<TYPE extends string>(rdts: RDT<TYPE>[], prefix?: string) {
+    return `${prefix ? prefix + ":" : ""}${rdts.map( rdt => (`${rdt.name}(${rdt.modifier})`)).join("/")}`
 }
 
 

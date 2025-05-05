@@ -218,4 +218,40 @@ export function getGuidelineValue(guidelines: GuidelineModel[], value: Guideline
         return guidelines.find((cursor) => (cursor === value));
     }
 }
+/**
+ * The RDT set.
+ */
 
+
+export interface RDTSet {
+    range: RDT<"Range">[];
+    duration: RDT<"Duration">[];
+    target: RDT<"Target">[];
+    totalModifier: number;
+}
+export function createRDTSet(range: RDT<"Range">[], duration: RDT<"Duration">[], target: RDT<"Target">[]): RDTSet {
+
+    return {
+        range,
+        duration,
+        target,
+        get totalModifier() {
+            return [...this.range, ...this.duration, ...this.target].reduce(
+                (result, rdt) => (result + rdt.modifier), 0);
+        }
+    };
+}
+
+export function deriveRDTSet<TYPE extends "Range"|"Duration"|"Target">(source: RDTSet, type: TYPE, value: RDT<TYPE>[]) {
+    
+    switch (type) {
+        case "Range":
+            return createRDTSet(value.filter( rdt => (rdt.type === type)) as RDT<"Range">[], source.duration, source.target);
+        case "Duration":
+            return createRDTSet(source.range, value.filter( rdt => (rdt.type === type)) as RDT<"Duration">[], source.target);
+        case "Target":
+            return createRDTSet(source.range, source.duration, value.filter( rdt => (rdt.type === type)) as RDT<"Target">[]);
+        default: 
+            return source;
+    }
+}

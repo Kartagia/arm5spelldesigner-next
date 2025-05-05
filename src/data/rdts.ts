@@ -1,4 +1,5 @@
 
+import { createApiConnection } from "@/lib/db";
 import { Range, Duration, Target, RDT } from "@/lib/modifiers"
 import { randomUUID, UUID } from "crypto";
 
@@ -51,4 +52,14 @@ export async function createRDT<TYPE extends string>(rdt: RDT<TYPE>): Promise<UU
         rdts[rdt.type].push({...rdt, guid: uuid});
     }
     return uuid;
+}
+
+export async function getDbRDTs() {
+    return createApiConnection().then( (dbh) => {
+        dbh.query<{ ranges: RDT<"range"|"duration"|"target">}>( {
+            text: "SELECT * FROM apiq",
+            values: [],
+        
+        })  
+    });
 }
