@@ -6,7 +6,9 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start -p $PORT || next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "heroku:pg:dump": "heroku ",
+    "dbadmin": "tsc && node ./script/dbadmin"
   },
   "dependencies": {
     "@lucia-auth/adapter-postgresql": "^3.1.2",
