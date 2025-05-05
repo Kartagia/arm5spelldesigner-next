@@ -1,9 +1,12 @@
+import 'server-only';
 import { PoolOptions } from 'pg';
 
 /**
  * The database configuration library.
  * @module config/db
  */
+
+export const sessionTimeout = 30;
 
 /**
  * Get the pool options for the authentication database.
