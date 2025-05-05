@@ -4,7 +4,7 @@
  * THe spells data source.
  */
 
-import { checkUUID, RDT, validUUID } from "@/lib/modifiers";
+import { checkUUID, RDT, UUIDSupplier, validUUID } from "@/lib/modifiers";
 import { checkSpell, getAllGuidelines, NewSpellModel, SpellLevel, SpellModel } from "@/lib/spells";
 import { randomUUID, UUID } from "crypto";
 import { createRDT, getAllRDTs } from "./rdts";
@@ -55,7 +55,25 @@ var spellStore: SpellModel[] = [
 ];
 
 export async function getAllSpells(): Promise<SpellModel[]> {
-    return [...spellStore];
+
+    const spells = await createApiConnection().then(
+
+        (dbh) => {
+            return dbh.query<{guid:UUID, value: ApiSpellModel}>("select guid, value from api_spells").then(
+                (result) => {
+                    console.log("Got %d spells from database", result.rowCount ?? 0);
+                    return Promise.all(result.rows.map( async (entry: {guid: UUID, value: ApiSpellModel}) => {
+                        return {...(await convertApiToSpell(entry.value)), guid: entry.guid};
+                    }));
+                }
+            )
+        }
+    ).catch( (error) => {
+        logger.error(error, "Could not retrieve spells");
+        return [...spellStore];
+    })
+
+    return spells;
 }
 
 
@@ -243,13 +261,23 @@ export async function createSpell(spellModel: SpellModel | NewSpellModel) {
 export async function storeDbSpells(spells: SpellModel[]) {
     return await createApiConnection().then(
         async dbh => {
-            return spells.map(async spell => {
+            dbh.query("begin");
+            return Promise.all(spells.map(async spell => {
                 const dbSpell = await convertSpellToApi(spell).then( (result) => (JSON.stringify(result)));
                 if (spell.guid) {
                     dbh.query("INSERT INTO spells(guid, value) VALUES ($1, $2) ON CONFLICT DO UPDATE SET value = $2 WHERE guid = $1", [spell.guid, JSON.stringify(dbSpell)]);
                 } else {
 
                 }
+            })).then( async (result) => {
+                await dbh.query("commit");
+                dbh.release();
+                return result;
+            }, (error) => {
+                console.error("Inserting spells failed:%s", error);
+                dbh.query("rollback");
+                dbh.release();
+                throw new Error("Could not add spells", {cause: error});
             })
         });
 }
@@ -300,4 +328,28 @@ export async function storeSpells(spells: SpellModel[], altered?: UUID[]) {
         reservedUUIDs = oldReserved;
     }
 
+}
+
+
+/**
+ * The RDT set. 
+ */
+export interface RDTSet {
+    range: RDT<"Range">[],
+    duration: RDT<"Duration">[],
+    target: RDT<"Target">[],
+    totalModifier: number
+}
+
+export function createRDTSet( range: RDT<"Range">[], duration: RDT<"Duration">[], target: RDT<"Target">[]):RDTSet {
+
+    return {
+        range,
+        duration,
+        target,
+        get totalModifier() {
+            return [...this.range, ...this.duration, ...this.target].reduce( 
+                (result, rdt) => ( result + rdt.modifier), 0)
+        }
+    };
 }
