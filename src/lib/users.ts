@@ -1,10 +1,11 @@
 
 import { createAuthConnection, escapeIdentifier } from '@/lib/db';
-import { setPassword, Credentials, validEmail, checkUserPassword, hashPassword } from './auth';
+import { setPassword, Credentials, checkUserPassword, hashPassword } from './auth';
 import { PoolClient } from 'pg';
 import logger = console;
 import { Session } from 'lucia';
 import { timingSafeEqual } from 'node:crypto';
+import { sessionTimeout } from './dbConfig';
 
 /**
  * Users module for handling users. 
@@ -164,12 +165,12 @@ export async function createUser(details: NewUserInfo, credentials: NewCredentia
                 /**
                  * @todo Remove debug output
                  */
-                await dbh.query("insert into auth_user (id, email, expires) values ($1, $2, NOW() + INTERVAL " + intervalAmount + ")",
+                await dbh.query("insert into auth_user (id, email, expires) values ($1, $2, NOW() + make_interval(hours=>$3))",
                     [
-                        id, details.email, // details.displayName || null, details.verified ?? false
+                        id, details.email, sessionTimeout // details.displayName || null, details.verified ?? false
                     ]);
                 console.log("Created user entry");
-                await setPassword(id, credentials.password, dbh).then(
+                await setPassword(dbh, id, credentials.password).then(
                     (result) => {
                         console.log("Password set");
                         return result;
@@ -185,7 +186,7 @@ export async function createUser(details: NewUserInfo, credentials: NewCredentia
                     console.log("Committing transaction...");
                     await dbh.query("commit");
                     dbh.release();
-                    console.log("Tranaction commited");
+                    console.log("Transaction commited");
                 }
                 resolve(id);
             } catch (error) {
@@ -290,7 +291,7 @@ export async function setUserPassword(userId: string, password: string, transact
         return dbh;
     })).then(async (dbh) => {
         try {
-            await setPassword(userId, password, dbh);
+            await setPassword(dbh, userId, password);
             await updateUser({ id: userId }, dbh);
             if (!transaction) {
                 await dbh.query("commit");
