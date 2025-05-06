@@ -7,6 +7,9 @@ import { PoolOptions } from 'pg';
  */
 
 export const sessionTimeout = 30;
+export const auth_database = "user_credentials";
+export const sessionDatabase = "user_session";
+export const userDatabase = "auth_user";
 
 /**
  * Get the pool options for the authentication database.

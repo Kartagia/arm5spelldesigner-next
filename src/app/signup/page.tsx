@@ -31,7 +31,7 @@ export default function SignupPage() {
     ]
 
     return (
-    <form action={action}>
+    <form className="flex-item column min-w-100" action={action}>
         <div className="flex column min-h-100">
             <header className="header"><h1 className="title">Create a new account</h1></header>
             <main className="main">

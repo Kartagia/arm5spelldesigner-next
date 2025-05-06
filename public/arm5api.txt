@@ -1,0 +1,3 @@
+Welcome to the Ars Magica Open API Repository.
+
+The repository requires login, or acquiring API key from the repository maintainer.

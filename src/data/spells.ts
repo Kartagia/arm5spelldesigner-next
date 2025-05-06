@@ -56,6 +56,8 @@ var spellStore: SpellModel[] = [
 
 export async function getAllSpells(): Promise<SpellModel[]> {
 
+    return [...spellStore];
+
     const spells = await createApiConnection().then(
 
         (dbh) => {
