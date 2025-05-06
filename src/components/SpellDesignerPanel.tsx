@@ -7,8 +7,6 @@ import { UUID } from "crypto";
 import { MouseEventHandler, useState } from "react";
 import SpellEditorComponent from "./SpellEditor";
 
-import { saveSpells } from '@/actions/spells.actions';
-
 
 /**
  * THe events related to the spell designer panel.
@@ -128,18 +126,34 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
         setUnsaved(true);
     }
 
+    /**
+     * Internal action saving spells with action, and informing saving listeners.
+     * The action does also perform altering the state of hte panel as necessary.
+     * @param spells The spells saved.
+     * @param unsavedGuids The affecte UUIDs. 
+     */
     const saveChangesAction = async function (spells: SpellModel[], unsavedGuids: UUID[]|undefined) {
-        await saveSpells(spells, unsavedGuids);
-        if (props.onSaveChanges) {
-            props.onSaveChanges(spells, unsavedGuids);
-            setUnsaveGuids([]);
-            setUnsaved(false);
-            console.log("Spells saved");
-        } else {
-            setDefaultSpells(spells);
-            setUnsaveGuids([]);
-            setUnsaved(false);
-            console.log("State saved");
+        try {
+            if (props.saveChangesAction) {
+                // Using sav chagnes action.
+                console.log("Performing server action saving spells");
+                await props.saveChangesAction(spells, unsavedGuids);
+                console.log("Server action complete.")
+            }
+            if (props.onSaveChanges) {
+                props.onSaveChanges(spells, unsavedGuids);
+                setUnsaveGuids([]);
+                setUnsaved(false);
+                console.log("Spells saved");
+            } else {
+                setDefaultSpells(spells);
+                setUnsaveGuids([]);
+                setUnsaved(false);
+                console.log("State saved");
+            }
+        } catch(error) {
+            console.error("Updating spells failed due error: %s.", error);
+
         }
     };
 

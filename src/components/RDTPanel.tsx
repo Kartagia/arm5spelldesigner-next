@@ -5,15 +5,7 @@ import { RDTSet } from "@/lib/spells";
 import { RDT, rdtsToString, rdtToString } from "@/lib/modifiers";
 import { UUID } from "crypto";
 import { ChangeEvent, ChangeEventHandler, FormEvent, ReactNode, useEffect, useState } from "react";
-
-export function ErrorList(props: {errors: Record<string, string[]>, errorKey?: string, className?: string}) {
-
-    return <ul className={props.className ?? "error"}>
-        {( props.errorKey ? (props.errorKey in props.errors ? [props.errorKey] : []): Object.getOwnPropertyNames(props.errors) ).flatMap(
-            (key) => (props.errors[key].map( (item) => (<li key={key + "." + item}>{item}</li>)))
-        )}
-    </ul>
-}
+import { ErrorList } from "./ErrorList";
 
 export type RDTChangeEventHandler<TYPE extends string> = (name: string, type: TYPE, newValue: RDT<TYPE>[]) => void;
 
