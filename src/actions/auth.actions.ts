@@ -2,6 +2,7 @@
 
 import { createApiKey, EmailField, PasswordField, validPassword } from "@/lib/auth";
 import { ErrorStruct, SignupFormSchema, SignupFormState, LoginFormState, LoginFormSchema } from "@/lib/definitions";
+import { stringifyErrors } from "@/lib/errors";
 import { createSession, createSessionCookie, logout as endSession } from "@/lib/session";
 import { createUser, loginUser } from "@/lib/users";
 import { Cookie } from "lucia";
@@ -41,27 +42,50 @@ export async function signup(previousState: SignupFormState, formData: FormData)
      * F00barhautakarastaavarakaskasta!
      */
     console.log("Creating account %s", validatedFields.data.email);
-    createUser({ email: validatedFields.data.email, displayName: validatedFields.data.displayName }, { password: validatedFields.data.password }).then(
+    return createUser({ email: validatedFields.data.email, displayName: validatedFields.data.displayName }, { password: validatedFields.data.password }).then(
         (userId) => {
             console.log("Created user[%s]: %s, %s", userId, validatedFields.data.email, validatedFields.data.displayName);
             // Creating login to the user.
             return loginUser(validatedFields.data.email, validatedFields.data.password).then(
                 () => {
+                    console.log("Created user successfully logged in");
                     revalidatePath("/", "layout");
                     redirect(previousState?.origin ?? "/spells");
+                },
+                (error) => {
+                    console.error("Could not login with created user: %s", error);
+                    return {
+                        values: values as Record<string, string>,
+                        errors: {
+                            "general": ["Could not login with created user!"]
+                        } as Record<string, string[]>
+                    }
                 }
             )
         },
         (error) => {
-            console.error("Creating user %s failed due %s.", validatedFields.data.email, error.message);
-            return {
-                values: values as Record<string, string>,
-                errors: {
-                    "general": ["Could not create user."]
-                } as Record<string, string[]>
+            if ("errors" in error) {
+                console.log("Creating user %s failed due errors %s", stringifyErrors(error.errors, {prefix: "\n", messageSeparator: "\n- "}));
+                return {
+                    values: values as Record<string, string>,
+                    errors: error.errors
+                }
+            } else {
+                console.error("Creating user %s failed due %s.", validatedFields.data.email, error.message);
+                return {
+                    values: values as Record<string, string>,
+                    errors: {
+                        "general": ["Could not create user."]
+                    } as Record<string, string[]>
+                }
             }
         }
-    )
+    );
+
+    // Redirect. 
+    revalidatePath("/", "layout");
+    redirect(previousState?.origin ?? "/spells");
+
 }
 
 /**
@@ -90,7 +114,7 @@ export async function login(previousState: LoginFormState, formData: FormData) {
             // Create new session cookie, if the session is no longer fresh.
             const cookie = await createSessionCookie(session.id);
             (await cookies()).set(cookie);
-            (await cookies()).set("x-openapi-token", cookie.value, { maxAge: 24*60*60, path:"/"});
+            (await cookies()).set("x-openapi-token", cookie.value, { maxAge: 24 * 60 * 60, path: "/" });
             console.log("Cookies added - %s", [
                 ...((await cookies()).has(cookie.name) ? [cookie.name] : []),
                 ...((await cookies()).has("x-openapi-token") ? ["x.openapi-token"] : [])
@@ -108,7 +132,7 @@ export async function login(previousState: LoginFormState, formData: FormData) {
     } else {
         // Failed.
         return {
-            values: { email: formData.get(EmailField) }  as Record<string, string>,
+            values: { email: formData.get(EmailField) } as Record<string, string>,
             errors: {
                 general: ["Invalid username or password"]
             } as Record<string, string[]>
