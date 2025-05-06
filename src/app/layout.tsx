@@ -47,9 +47,10 @@ export default async function RootLayout({
         className={`${caudexSans.variable} ${caudexSansBold.variable} font-[family-name:var(--font-sans)] flex column min-h-100`}
       >
         <header className="header"><h1 className="title"><Suspense>{metadata.title?.toString()}</Suspense></h1></header>
-        <main className="main flex">{children}</main>
-        <footer className="footer"><Image src="/next.svg" alt="NextJS logo" width={200} height={60}/>
-        {userInfo ? <LogoutButton>Logout</LogoutButton> : <Link href="/login" className="button">Login</Link>}
+        <nav className="header row buttonbar">{userInfo ? <LogoutButton>Logout</LogoutButton> : <Link href="/login" className="button">Login</Link>}</nav>
+        <main className="main flex min-h-100">{children}</main>
+        <footer className="footer"><Image src="/arm5openlicenselogo.png" alt="Ars Magica Open License logo" width={120} height={60}/>
+        
         </footer>
       </body>
     </html>
