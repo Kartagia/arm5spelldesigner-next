@@ -1,4 +1,16 @@
-GET http://localhost:3000/arm5
+GET http://localhost:3000/arm5/spellguidelines
 Content-Type: application/json
 x-openapi-token: $DATA_API_KEY
 
+
+###
+
+GET http://localhost:3000/arm5/arts
+Content-Type: application/json
+x-openapi-token: $DATA_API_KEY
+
+###
+
+GET http://localhost:3000/arm5/spells
+Content-Type: application/json
+x-openapi-token: $DATA_API_KEY
