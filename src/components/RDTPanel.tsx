@@ -46,8 +46,8 @@ function RDTSelector<TYPE extends string>(props: {options: RDT<TYPE>[], value: R
                         } else if (result.options.find( (seeker) => (seeker === currentRdt || currentRdt.guid && (currentRdt.guid === seeker.guid)))) {
                             logger.debug("RDT[%s]@%d: Building selector %s out of [%s]", props.name, index, rdtToString(currentRdt), rdtsToString(result.options));
                             return {result: [...result.result, (
-                                <select key={props.name + index} name={props.name + index} onChange={props.onChange?.bind(undefined, props.name, index)}>
-                                    { result.options.map( (rdt) => (<option selected={rdt === currentRdt} key={rdt.name} value={rdt.name}>{rdt.name}({rdt.modifier})</option>))}
+                                <select key={props.name + index} value={currentRdt.name} name={props.name + index} onChange={props.onChange?.bind(undefined, props.name, index)}>
+                                    { result.options.map( (rdt) => (<option key={rdt.name} value={rdt.name}>{rdt.name}({rdt.modifier})</option>))}
                                 </select>
                             )], ...props.options.reduce( (result: {options: RDT<TYPE>[], current?: RDT<TYPE>}, cursor) => (
                                 cursor?.guid  && currentRdt.secondaryRDTs.includes(cursor.guid) ? {
