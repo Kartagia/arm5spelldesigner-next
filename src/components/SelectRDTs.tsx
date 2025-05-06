@@ -1,24 +1,12 @@
-import { ChangeEvent, HTMLProps, useState } from "react";
-import {RDT} from '@/lib/modifiers'
+import { ChangeEvent, HTMLProps, useEffect, useState } from "react";
+import {equalRDTValue, getRDTValue, RDT} from '@/lib/modifiers'
 import { UUID } from "crypto";
+import { logger } from "../lib/logger";
 
 /**
  * The default RDT model contais ranges, durations, and targets.
  */
 export type RDTModel = RDT<string>;
-
-/**
- * Get RDT value.
- * @param candidate The cnadidate of the RDT value.
- * @returns The RDT value function. 
- */
-function getRDTValue( candidate: RDTModel|(RDTModel[])|undefined): RDTModel[] {
-    if (candidate) {
-        return (Array.isArray(candidate) ? candidate : [candidate]);
-    } else {
-        return [];
-    }
-}
 
 /**
  * Get RDT key.
@@ -63,6 +51,13 @@ export function SelectRDTComponent( props : Omit<HTMLProps<HTMLSelectElement>, "
     defaultValue?: (RDTModel|RDTModel[]), value?: (RDTModel|RDTModel[]), onRDTChange?: (newValue: RDTModel[]) => void}) {
     const [value, setValue] = useState<RDTModel[]>(getRDTValue(props.defaultValue ?? props.value));
     const className: string = [ "rdt", ...(props.className?.split(" ") ?? [])].join(" ");
+    useEffect( () => {
+        logger.debug("Checking if important properties has changed");
+        if (!equalRDTValue(props.defaultValue, value) || !equalRDTValue(props.value,value)) {
+            logger.debug("Value has chagned. Changing the internal state of the component.");
+            setValue(getRDTValue(props.defaultValue ?? props.value));
+        }
+    }, [props]);
 
     if (props.choices == undefined || props.choices.length === 0) {
         // The component is empty as there si no choices. 

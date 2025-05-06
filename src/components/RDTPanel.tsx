@@ -2,10 +2,11 @@
 
 import { createRDTSet } from "@/lib/spells";
 import { RDTSet } from "@/lib/spells";
-import { RDT, rdtsToString, rdtToString } from "@/lib/modifiers";
+import { equalRDTValue, RDT, rdtsToString, rdtToString, validRDTChange, changeRDT } from "@/lib/modifiers";
 import { UUID } from "crypto";
 import { ChangeEvent, ChangeEventHandler, FormEvent, ReactNode, useEffect, useState } from "react";
 import { ErrorList } from "./ErrorList";
+import {logger} from "@/lib/logger";
 
 export type RDTChangeEventHandler<TYPE extends string> = (name: string, type: TYPE, newValue: RDT<TYPE>[]) => void;
 
@@ -25,6 +26,9 @@ export type RDTSelectorChangeHangler = (name: string, index: number, event: Chan
 function RDTSelector<TYPE extends string>(props: {options: RDT<TYPE>[], value: RDT<TYPE>[], name: string, onChange?: RDTSelectorChangeHangler,
     errors?: Record<string, string[]>, 
 }) {
+
+
+
     return (<>
                 {
                     props.value.reduce( (result: RDTComponentAccumulator<TYPE>, rdt, index, all) => {
@@ -63,9 +67,10 @@ function defaultRDT<TYPE extends string>(value: RDT<TYPE>[]|undefined|null, defa
     }
 }
 
-export function RDTPanel({rdts, onChange, onConfirm, className, ...props}: {
+export function RDTPanel(props: {
     rdts: RDT<string>[], value?: RDTSet,
     onChange?: RDTChangeEventHandler<string>, onConfirm?: (selected: RDTSet)=>void, className?:string}) {
+    const {rdts, onChange, onConfirm, className } = props;
     const [errors, setErrors] = useState({} as Record<string, string[]>)
     const [ranges, setRanges] = useState(rdts.filter( rdts => (rdts.type === "Range")) as RDT<"Range">[]);
     const [durations, setDurations] = useState(rdts.filter( rdts => (rdts.type === "Duration")) as RDT<"Duration">[]);
@@ -74,23 +79,50 @@ export function RDTPanel({rdts, onChange, onConfirm, className, ...props}: {
     const [duration, setDuration] = useState<RDT<"Duration">[]>(defaultRDT(props.value?.duration, durations.slice(0,1)));
     const [target, setTarget] = useState<RDT<"Target">[]>(defaultRDT(props.value?.target, targets.slice(0,1)));
     const [currentRDT, setCurrentRDT] = useState<RDTSet>(createRDTSet(range, duration,target));
+    var onUpdate : boolean = true; 
+    const setOnUpdate = (value: boolean) => (onUpdate = value);
+    useEffect( () => {
+        if (props.value !== undefined && props.value !== currentRDT) {
+            const newRDT = createRDTSet(
+                defaultRDT(props.value?.range,  ranges.slice(0,1)), 
+                defaultRDT(props.value?.duration,  durations.slice(0,1)),
+                defaultRDT(props.value?.target,  targets.slice(0,1)));
+            logger.debug("The value has changed: from (%s) to (%s)", 
+                [rdtsToString(currentRDT.range, "R:"), 
+                    rdtsToString(currentRDT.duration, "D:"), 
+                    rdtsToString(currentRDT.target, "T:")].join(","),
+                [rdtsToString(newRDT.range, "R:"), 
+                rdtsToString(newRDT.duration, "D:"), 
+                rdtsToString(newRDT.target, "T:")].join(","));
+            setCurrentRDT(newRDT);
+            setRange(newRDT.range);
+            setDuration(newRDT.duration);
+            setTarget(newRDT.target);
+        } else {
+            logger.debug("Tneo RDTs has not changed");
+        }
+    }, [props]);
     useEffect( () => {
         if (onChange ) {
             let changed = false;
-            if (currentRDT.range !== range) {
+            if (!equalRDTValue(currentRDT.range, range)) {
+                logger.debug("Reporting range change");
                 changed = true;
                 onChange("range", "Range", range);
             }
-            if (currentRDT.duration !== duration) {
+            if (!equalRDTValue(currentRDT.duration, duration)) {
+                logger.debug("Reporting duration change");
                 changed = true;
                 onChange("duration", "Duration", duration);
             }
-            if (currentRDT.target !== target) {
+            if (!equalRDTValue(currentRDT.target, target)) {
+                logger.debug("Reporting target change");
                 changed = true;
                 onChange("target", "Target", target);
             }
         }
     }, [range, duration, target]);
+    setOnUpdate(false);
 
     function handleSubmit( data: FormData ) {
 
@@ -103,33 +135,8 @@ export function RDTPanel({rdts, onChange, onConfirm, className, ...props}: {
         }
     }
 
-    function validRDTChange<TYPE extends string>(current: RDT<TYPE>[], index: number, newValue: RDT<TYPE>): boolean {
-        return (index === 0) || (index === current.length && ( index === 0 || newValue.guid != null && current[current.length-1].secondaryRDTs.includes(newValue.guid)) );
-    }
+    
 
-    type RDTChangeAccumulator<TYPE extends string> = { result: RDT<TYPE>[], done?: boolean, current?: RDT<TYPE> }
-
-    function changeRDT<TYPE extends string>(current: RDT<TYPE>[], index: number, newValue: RDT<TYPE>) {
-        if (index === current.length -1 && newValue === current[current.length-1]) {
-            // No change.
-            return current;
-        } else if (!validRDTChange(current, index, newValue)) {
-            // Change is rejected.
-            return current;
-        }
-
-        // Createing new value by cutting invalidated values from tail.
-        return [...current.slice(0, index), newValue, ...( current.slice(index+1).reduce( 
-            (result: {done?: boolean, result: RDT<TYPE>[], cursor?: RDT<TYPE>}, current: RDT<TYPE>) => {
-                if (result.done || result.cursor == null) {
-                    return result;
-                } else if (current.guid && result.cursor?.secondaryRDTs?.includes(current.guid)) {
-                    return {result: [...result.result, current], cursor:current};
-                } else {
-                    return {...result, done: true};
-                }
-            }, { cursor: newValue, result: [] }).result) ];
-    }
 
     /**
      * Handle change of rdt value. The handler should be bound with value name, and the index of the select compont.
@@ -138,35 +145,49 @@ export function RDTPanel({rdts, onChange, onConfirm, className, ...props}: {
      * @param event The change event.
      */
     function handleChange(name: string, index: number, event: ChangeEvent<HTMLSelectElement>) {
+        setOnUpdate(true);
         const newValue = event.currentTarget.value;
         switch (name) {
             case "range":
                 console.log("Handling value change: %s at %d from %s to %s", name, index, range?.[index] ? rdtToString(range?.[index]) : "none", event.currentTarget.value);
                 const newRange = ranges.find( rdt => (rdt.name === newValue));
                 if (newRange && validRDTChange(range, index, newRange)) {
-                    setRange( current => changeRDT(current, index, newRange));
+                    const newValue = changeRDT(range, index, newRange)
+                    setRange( newValue );
+                    logger.debug(" Range[%d] set to %s => %s", index, rdtToString(newRange), rdtsToString(newValue));
                 }  else {
                     event.preventDefault();
-                    console.log("Invalid change: %s at %d to %s", name, index, newRange ? rdtToString(newRange) : "none")
+                    logger.debug("Invalid change: %s at %d to %s", name, index, newRange ? rdtToString(newRange) : "none")
                 }
                 break; 
             case "duration":
-                const newDuration = duration.find( rdt => (rdt.name === newValue));
+                console.log("Handling %s value change at %d from %s to %s", name, index, duration?.[index] ? rdtToString(duration?.[index]) : "none", event.currentTarget.value);
+                const newDuration = durations.find( rdt => (rdt.name === newValue));
                 if (newDuration && validRDTChange(duration, index, newDuration)) {
-                    setDuration( current => changeRDT(current, index, newDuration) );
+                    const newValue = changeRDT(duration, index, newDuration)
+                    setDuration( newValue );
+                    logger.debug(" Duration[%d] set to %s => %s", index, rdtToString(newDuration), rdtsToString(newValue));
                 }  else {
                     event.preventDefault();
+                    logger.debug("Invalid %s change: Index: %d,  to %s", name, index, newDuration? rdtToString(newDuration) : "none")
                 }
+                break;
             case "target":
-                const newTarget = target.find( rdt => (rdt.name === newValue));
+                console.log("Handling %s value change at %d from %s to %s", name, index, target?.[index] ? rdtToString(target?.[index]) : "none", event.currentTarget.value);
+                const newTarget = targets.find( rdt => (rdt.name === newValue));
                 if (newTarget && validRDTChange(target, index, newTarget)) {
-                    setTarget( current => changeRDT(current, index, newTarget) );
+                    const newValue = changeRDT(target, index, newTarget);
+                    setTarget( newValue );
+                    logger.debug(" Target[%d] set to %s => %s", index, rdtToString(newTarget), rdtsToString(newValue));
+
                 }  else {
                     event.preventDefault();
                 }
+                break;
             default:
-
+                logger.debug("Unknown RDT variable '%s'", name);
         }
+        setOnUpdate(false);
     }
     return (<form action={ handleSubmit }>
         <div className={className ? "flex row "+ className : "flex row"}>
