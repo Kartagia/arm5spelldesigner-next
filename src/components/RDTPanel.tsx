@@ -2,7 +2,7 @@
 
 import { createRDTSet } from "@/lib/spells";
 import { RDTSet } from "@/lib/spells";
-import { equalRDTValue, RDT, rdtsToString, rdtToString, validRDTChange, changeRDT } from "@/lib/modifiers";
+import { equalRDTValue, RDT, rdtsToString, rdtToString, validRDTChange, changeRDT, getRDTValue } from "@/lib/modifiers";
 import { UUID } from "crypto";
 import { ChangeEvent, ChangeEventHandler, FormEvent, ReactNode, useEffect, useState } from "react";
 import { ErrorList } from "./ErrorList";
@@ -26,22 +26,31 @@ export type RDTSelectorChangeHangler = (name: string, index: number, event: Chan
 function RDTSelector<TYPE extends string>(props: {options: RDT<TYPE>[], value: RDT<TYPE>[], name: string, onChange?: RDTSelectorChangeHangler,
     errors?: Record<string, string[]>, 
 }) {
-
+    const [current, setCurrent] = useState(props.value);
+    useEffect( () =>{
+        logger.debug("Checking if [%s] %s is equal to %s: ", props.name, 
+            rdtsToString(current), rdtsToString(props.value), equalRDTValue(current, props.value));
+        if (!equalRDTValue(current, props.value)) {
+            // The value has changed.
+            setCurrent(getRDTValue(props.value));
+            logger.debug("RDT[%s] value set to %s", props.name, rdtsToString(props.value));
+        }
+    }, [props]);
 
 
     return (<>
                 {
-                    props.value.reduce( (result: RDTComponentAccumulator<TYPE>, rdt, index, all) => {
+                    current.reduce( (result: RDTComponentAccumulator<TYPE>, currentRdt, index, all) => {
                         if (result.done) {
                             return result;
-                        } else if (result.options.find( (seeker) => (seeker === rdt || rdt.guid && (rdt.guid === seeker.guid)))) {
-
+                        } else if (result.options.find( (seeker) => (seeker === currentRdt || currentRdt.guid && (currentRdt.guid === seeker.guid)))) {
+                            logger.debug("RDT[%s]@%d: Building selector %s out of [%s]", props.name, index, rdtToString(currentRdt), rdtsToString(result.options));
                             return {result: [...result.result, (
                                 <select key={props.name + index} name={props.name + index} onChange={props.onChange?.bind(undefined, props.name, index)}>
-                                    { result.options.map( (rdt) => (<option defaultChecked={rdt === result.current} key={rdt.name} value={rdt.name}>{rdt.name}({rdt.modifier})</option>))}
+                                    { result.options.map( (rdt) => (<option selected={rdt === currentRdt} key={rdt.name} value={rdt.name}>{rdt.name}({rdt.modifier})</option>))}
                                 </select>
                             )], ...props.options.reduce( (result: {options: RDT<TYPE>[], current?: RDT<TYPE>}, cursor) => (
-                                cursor?.guid  && rdt.secondaryRDTs.includes(cursor.guid) ? {
+                                cursor?.guid  && currentRdt.secondaryRDTs.includes(cursor.guid) ? {
                                     options: [...result.options, cursor], current: result.current ?? cursor
                                 } as {options: RDT<TYPE>[], current?: RDT<TYPE>}: result), 
                                 {options: [], cursor: undefined} as {options: RDT<TYPE>[], current?: RDT<TYPE>}
@@ -50,7 +59,7 @@ function RDTSelector<TYPE extends string>(props: {options: RDT<TYPE>[], value: R
                             return {...result, done: true}
                         }
                     
-                }, {result: [] as ReactNode[], options: props.options, current: props.value[0]} ).result
+                }, {result: [] as ReactNode[], options: props.options, current: current[0]} ).result
             }
             {
                 props.errors && <ErrorList errors={props.errors} errorKey={props.name} />
