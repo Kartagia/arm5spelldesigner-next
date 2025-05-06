@@ -1,5 +1,6 @@
 "use client";
 import { login } from "@/actions/auth.actions";
+import { ErrorList } from "@/components/ErrorList";
 import Link from "next/link";
 import { useActionState, useId } from "react";
 
@@ -31,11 +32,12 @@ export default function LoginPage() {
                     <input name={field.name} id={`${id}:${field.name}`} type={field.type} defaultValue={state?.values && field.name in state.values ? (
                         (state?.values?.[field.name] as string) ?? "") : ""}></input>
                 </div>
-                { state?.errors?.[field.name] !== undefined && (state?.errors?.[field.name]?.length ?? 0) > 0 && (<div className="error form-field"><ul>{(state?.errors?.[field.name] ?? []).map( 
-                    (error: string) => (<li key={error}>{error}</li>))}</ul></div>)}</div>
+                <ErrorList className="form-field" errors={state?.errors || {}} errorKey={field.name} />
+            </div>
             ))
             
             }
+            <ErrorList className="form-field" errors={state?.errors ?? {}} errorKey="general" />
             </main>
             <footer className="footer">
                 <button disabled={pending} type="submit">Login</button>
