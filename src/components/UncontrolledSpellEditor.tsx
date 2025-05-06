@@ -5,11 +5,13 @@ import { SpellEditorProperties, SpellEditorEvents } from './SpellEditor';
 import { ArtModel, createRDTSet, deriveRDTSet, GuidelineModel, NewSpellModel, SpellModel } from '@/lib/spells';
 import { SelectGuideline } from "./SelectGuideline";
 import { SelectArts } from "./SelectArts";
-import { checkUUID, RDT, validUUID } from "@/lib/modifiers";
+import { changeRDT, checkUUID, RDT, rdtsToString, validUUID } from "@/lib/modifiers";
 import styles from "./UncotrolledSpellEditor.module.css";
 import { storeDbSpells } from "@/data/spells";
 import { createSpell as createApiSpell } from "@/actions/spells.actions"
 import { RDTPanel } from "./RDTPanel";
+import { logger } from "@/lib/logger";
+import { nativeEnum } from "zod";
 
 /**
  * Log a message along with a function.
@@ -110,9 +112,9 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
     const [newSpellName, setNewSpellName] = useState("");
     const [rdt, setRDT] = useState(createRDTSet(spell.range ?? [], spell.duration ?? [], spell.target ?? []));
     useEffect(() => {
-        console.log("Check if important properties has changed");
+        logger.info("Check if important properties has changed");
         if (props.defaultValue !== defaultSpell) {
-            console.log("Default spell has changed");
+            logger.info("Default spell has changed");
             setDefaultSpell(props.defaultValue);
             const newSpell = props.defaultValue ?? createNewSpell(props.forms, props.techniques, props.allRDTs);
             setSpell(newSpell);
@@ -121,8 +123,13 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
             setLevel(newSpell.level);
             setDescription(newSpell.description);
             setNewSpellName("");
+            logger.debug("RDTS from %s to %s", 
+                [rdtsToString(rdt.range, "R:"), rdtsToString(rdt.duration, "D:"), rdtsToString(rdt.target, "T:")].join(", "),
+                [rdtsToString(newSpell.range ?? [], "R:"), 
+                            rdtsToString(newSpell.duration ?? [], "D:"), 
+                            rdtsToString(newSpell.target ?? [], "T:")].join(","))
             setRDT(createRDTSet(newSpell.range ?? [], newSpell.duration ?? [], newSpell.target ?? []))
-            console.log("Descrioption %s and %s", newSpell.description ?? "[NO DESCRIPTION]", description ?? "[NO DESCRIPTION]")
+            logger.debug("Descrioption %s and %s", newSpell.description ?? "[NO DESCRIPTION]", description ?? "[NO DESCRIPTION]")
         }
     }, [props])
 
@@ -174,7 +181,8 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
      */
     function createSpell(spell: SpellModel|Partial<SpellModel>|undefined): SpellModel|NewSpellModel|undefined {
         if (spell && spell.name && spell.technique && spell.form && (spell.guideline === undefined || validUUID(spell.guideline)) &&
-            spell.level && (spell.level === "Generic" || spell.level > 0)
+            spell.level && (spell.level === "Generic" || spell.level > 0) &&
+            [spell.range, spell.duration, spell.target].every( rdt => (rdt && rdt.length > 0))
     ) {
             return {
                 name: spell.name, 
@@ -184,7 +192,10 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
                 form: spell.form, 
                 level: spell.level,
                 traits: spell.traits,
-                description: spell.description
+                description: spell.description, 
+                range: spell.range, 
+                duration: spell.duration,
+                target: spell.target
             };
         } else {
             return undefined;
@@ -196,15 +207,17 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
         let newSpell: SpellModel|NewSpellModel|undefined = undefined;
         if (newSpellName) {
             // New spell with proper name.
-            newSpell = createSpell({...spell, name: newSpellName});
+            newSpell = createSpell({...spell, name: newSpellName, range: rdt.range, duration: rdt.duration, target: rdt.target});
         } else {
-            newSpell = createSpell(spell);
+            newSpell = createSpell({...spell, range: rdt.range, duration: rdt.duration, target: rdt.target});
         }
         if (newSpell && props.onConfirm) {
-            console.log("Reporting new spell: %s(%s%s%s)", newSpell.name, newSpell.technique, newSpell.form, newSpell.level);
+            console.log("Reporting new spell: %s(%s%s%s, %s)", newSpell.name, newSpell.technique, newSpell.form, newSpell.level, 
+                rdtsToString(newSpell.range ?? [], "R"), rdtsToString(newSpell.duration ?? [], "D"), rdtsToString(newSpell.target ?? [], "T") );
             props.onConfirm(newSpell);
         } else if (newSpell) {
-            console.log("Nobody is concerned on spell: %s(%s%s%s)", newSpell.name, newSpell.technique, newSpell.form, newSpell.level);
+            console.log("Nobody is concerned on spell: %s(%s%s%s, %s)", newSpell.name, newSpell.technique, newSpell.form, newSpell.level, 
+                rdtsToString(newSpell.range ?? [], "R"), rdtsToString(newSpell.duration ?? [], "D"), rdtsToString(newSpell.target ?? [], "T") );
         } else {
             console.log("No spell to commit!");
         }
@@ -221,11 +234,12 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
     }
 
     function handleRDTChange<TYPE extends string>(name: string, type: TYPE, newValue: RDT<TYPE>[]) {
+        logger.debug("Handling RDT change %s of %s to %s", name, type, rdtsToString(newValue, type) );
+    
         switch (type) {
             case "Range":
                 setSpell( (current) => {
-                    current.range = newValue as RDT<"Range">[];
-                    return {...current};
+                    return {...current, range: newValue as RDT<"Range">[]};
                 } );
                 setRDT( (current) => deriveRDTSet(current, "Range", newValue as RDT<"Range">[]) );
                 
@@ -233,14 +247,14 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
             case "Duration":
                 setSpell( (current) => {
                     current.duration = newValue as RDT<"Duration">[];
-                    return {...current};
+                    return {...current, duration: newValue as RDT<"Duration">[]};
                 } );
                 setRDT( (current) => deriveRDTSet(current, "Duration", newValue as RDT<"Duration">[]) );
                 break;
             case "Target":
                 setSpell( (current) => {
                     current.target = newValue as RDT<"Target">[];
-                    return {...current};
+                    return {...current, target: newValue as RDT<"Target">[]};
                 } );
                 setRDT( (current) => deriveRDTSet(current, "Target", newValue as RDT<"Target">[]) );
                 break;
