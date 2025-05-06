@@ -67,9 +67,9 @@ export type SpellDesignerPanelProps = SpellDeignerProperties & SpellDesignerEven
  * @param param0 
  * @returns The JSX component of the spell title.
  */
-function SpellTitle( { model, selected = false, onClick=undefined}: {selected?: boolean, model: SpellModel, onClick?: MouseEventHandler}) {
+function SpellTitle( { model, selected = false, onClick=undefined, ...props}: {className?: string, selected?: boolean, model: SpellModel, onClick?: MouseEventHandler}) {
     console.table({selected})
-    return (<div className={(!selected ? styles.item: styles.selectedItem)} onClick={onClick}>{model.name}({model.technique}{model.form}{model.level.toString()})</div>)
+    return (<div className={((styles.SpellTitle) + " " +(!selected ? styles.item: styles.selectedItem) + (props.className ? " " + props.className : ""))} onClick={onClick}>{model.name}({model.technique}{model.form}{model.level.toString()})</div>)
 }
 
 /**
@@ -160,9 +160,11 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
     return <div className={styles.noHScroll}>
         <header className="header main"></header>
         <main className={"Main " + styles.noHScroll}>
-            <span className="LeftView">
+            <span className={"LeftView "+ styles.noHScroll}>
                 <header className="header">Spell List</header>
-                <main className="main column scroll">{spells.map( spell => (<SpellTitle selected={spell === selected} model={spell} key={getSpellKey(spell)} onClick={ (e) => {
+                <main className={ "main " + styles.SpellTitleList}><div className={styles.SpellTitleList}>{spells.map( spell => (<SpellTitle 
+                className={styles.noHScroll +" "+ styles.HStrech}
+                selected={spell === selected} model={spell} key={getSpellKey(spell)} onClick={ (e) => {
                     if (selected === spell) {
                         setSelected(undefined);
                     } else {
@@ -170,7 +172,7 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
                     }
                 }
             } />)) 
-                }</main>
+                }</div></main>
                 <footer className={"footer flex row " + styles.noHScroll}>
                 <button className="flex-item" disabled={!selected} onClick={ () => {
                     /**
