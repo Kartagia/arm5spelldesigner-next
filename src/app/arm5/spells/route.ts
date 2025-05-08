@@ -17,7 +17,11 @@ import { ErrorReply } from "@/lib/api_data";
 export const revalidate = 0;
 
 
-
+/**
+ * Get all spells. 
+ * @param request The API request.
+ * @returns The reply to the request. 
+ */
 export async function GET(request: Request) {
     const privileges = await validateApiRequest(request);
     if (privileges.apiKey || privileges.cookieKey) {
