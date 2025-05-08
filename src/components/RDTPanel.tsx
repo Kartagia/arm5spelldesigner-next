@@ -8,6 +8,10 @@ import { ChangeEvent, ChangeEventHandler, FormEvent, ReactNode, useEffect, useSt
 import { ErrorList } from "./ErrorList";
 import {logger} from "@/lib/logger";
 
+
+/**
+ * The type of a RDT chagne event handler. 
+ */
 export type RDTChangeEventHandler<TYPE extends string> = (name: string, type: TYPE, newValue: RDT<TYPE>[]) => void;
 
 
@@ -68,6 +72,12 @@ function RDTSelector<TYPE extends string>(props: {options: RDT<TYPE>[], value: R
 }
 
 
+/**
+ * Create default RDT. 
+ * @param value The value.
+ * @param defaultValue The default value use,d if the value is undefined, null, or empty list.
+ * @returns A valid RDT.
+ */
 function defaultRDT<TYPE extends string>(value: RDT<TYPE>[]|undefined|null, defaultValue: RDT<TYPE>[]): RDT<TYPE>[] {
     if (value && value.length > 0) {
         return value;
