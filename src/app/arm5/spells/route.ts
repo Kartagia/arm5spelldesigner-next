@@ -11,6 +11,8 @@ import { SpellModel, validRDT } from '@/lib/spells';
 import { checkUUID, validUUID } from '@/lib/modifiers';
 import { randomUUID, UUID } from 'crypto';
 import { logger, validateApiRequest } from '@/lib/api_auth';
+import { safeRelease } from "@/lib/api_db";
+import { ErrorReply } from "@/lib/api_data";
 
 export const revalidate = 0;
 
@@ -32,7 +34,7 @@ export async function GET(request: Request) {
             }
         ).then(async dbh => {
             logger.debug("Connection established");
-            return await dbh.query<[UUID, SpellModel]>("SELECT guid, value FROM api_spells").then(
+            const result =  await dbh.query<[UUID, SpellModel]>("SELECT guid, value FROM api_spells").then(
                 (result) => {
                     logger.info("Responding with %d spells", result.rowCount);
                     return Response.json(result.rows.map((spell) => {
@@ -51,12 +53,14 @@ export async function GET(request: Request) {
                 (error) => {
                     // The error.
                     logger.error("Fetching all spells failed %s", error);
+                    return ErrorReply(503, "Spells API not available at the moemnt");
                 }
 
             ).finally(() => {
-                dbh.release();
+                safeRelease(dbh);
                 logger.debug("Database released");
             });
+            return result;
         });
     } else {
         return Response.json({ message: "Authentication required", code: 401 }, { status: 401 });
