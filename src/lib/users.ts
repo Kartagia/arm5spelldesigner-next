@@ -145,7 +145,7 @@ export async function getAllUsers(transaction: PoolClient | undefined = undefine
  * @param details The user details.
  * @param credentials The user credentials.
  * @param transaction The transaction used to add user. 
- * @returns The promsie of completion.
+ * @returns The promsie of created user identifier.
  */
 export async function createUser(details: NewUserInfo, credentials: NewCredentials, transaction: PoolClient | undefined = undefined): Promise<string> {
 
@@ -185,9 +185,11 @@ export async function createUser(details: NewUserInfo, credentials: NewCredentia
                         console.log("Password set");
                         return result;
                     },
-                    (error) => {
-                        console.error("Could not set password");
-                        throw error;
+                    (error: DatabaseError) => {
+                        console.error();
+                        throw { message: "Could not set password", errors: {
+                            "api": [error.message],
+                            "general": ["Setting credentials failed"]}}
                     }
                 );
                 console.log("Created credentials ");

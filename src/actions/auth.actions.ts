@@ -1,12 +1,17 @@
 "use server";
 
+import { createApiSession, getApiSession } from "@/lib/api_auth";
+import { ErrorContent, UnauthorizedReply } from "@/lib/api_data";
 import { createApiKey, EmailField, PasswordField, validPassword } from "@/lib/auth";
-import { ErrorStruct, SignupFormSchema, SignupFormState, LoginFormState, LoginFormSchema } from "@/lib/definitions";
+import { ErrorStruct, SignupFormSchema, SignupFormState, LoginFormState, LoginFormSchema, ApiSessionInfo } from "@/lib/definitions";
 import { stringifyErrors } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 import { createSession, createSessionCookie, logout as endSession } from "@/lib/session";
 import { createUser, loginUser } from "@/lib/users";
 import { Cookie } from "lucia";
 import { revalidatePath } from "next/cache";
+import { ResponseCookie, ResponseCookies } from "next/dist/compiled/@edge-runtime/cookies";
+import { COOKIE_NAME_PRERENDER_BYPASS } from "next/dist/server/api-utils";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -45,27 +50,30 @@ export async function signup(previousState: SignupFormState, formData: FormData)
     return createUser({ email: validatedFields.data.email, displayName: validatedFields.data.displayName }, { password: validatedFields.data.password }).then(
         (userId) => {
             console.log("Created user[%s]: %s, %s", userId, validatedFields.data.email, validatedFields.data.displayName);
-            // Creating login to the user.
-            return loginUser(validatedFields.data.email, validatedFields.data.password).then(
-                () => {
-                    console.log("Created user successfully logged in");
-                    revalidatePath("/", "layout");
-                    redirect(previousState?.origin ?? "/spells");
+            // Creating session for the user.
+            return createApiKey().then((apiKey) => (createSession(userId, apiKey))).then(
+                (session) => {
+                    return createSessionCookie(session.id).then(
+                        async (cookie) => {
+                            (await cookies()).set(cookie);
+                            redirect(previousState?.origin ?? "/spells");
+                        },
+                        (error) => {
+                            // Could not create cookie. Redirecting to login. 
+                            logger.error("CreateUser[%s]: CreateSesssion[%s]: Could not create session cookie: %s", userId, session.id, error);
+                            redirect("/login");
+                        }
+                    )
                 },
                 (error) => {
-                    console.error("Could not login with created user: %s", error);
-                    return {
-                        values: values as Record<string, string>,
-                        errors: {
-                            "general": ["Could not login with created user!"]
-                        } as Record<string, string[]>
-                    }
+                    logger.error("CreateUser[%s]: Could not create session: %s", userId, error);
+                    redirect("/login");
                 }
             )
         },
         (error) => {
             if ("errors" in error) {
-                console.log("Creating user %s failed due errors %s", stringifyErrors(error.errors, {prefix: "\n", messageSeparator: "\n- "}));
+                console.log("Creating user %s failed due errors %s", stringifyErrors(error.errors, { prefix: "\n", messageSeparator: "\n- " }));
                 return {
                     values: values as Record<string, string>,
                     errors: error.errors
@@ -81,12 +89,8 @@ export async function signup(previousState: SignupFormState, formData: FormData)
             }
         }
     );
-
-    // Redirect. 
-    revalidatePath("/", "layout");
-    redirect(previousState?.origin ?? "/spells");
-
 }
+
 
 /**
  * Login action. 
@@ -101,7 +105,19 @@ export async function login(previousState: LoginFormState, formData: FormData) {
         try {
             const user = await loginUser(validatedFields.data.email, validatedFields.data.password);
             console.log("Got user information for user %s: %s", user.id, user.email);
-            const session = await createSession(user.id, await createApiKey()).then(
+            const {headerKey, sessionCookie} : ApiSessionInfo = await getApiSession(user.id);
+            if (!headerKey.value) {
+                // The key creation failed. 
+                return {
+                    values: { email: formData.get(EmailField) } as Record<string, string>,
+                    errors: {
+                        general: ["Server is busy. Please wait for a few minutes before retrying."]
+                    } as Record<string, string[]>
+                };
+            }
+
+            // Create the Next application session. 
+            const session = await createSession(user.id, headerKey.value).then(
                 (result) => {
                     console.log("Got session with id %s", result.id);
                     return result;
@@ -114,11 +130,22 @@ export async function login(previousState: LoginFormState, formData: FormData) {
             // Create new session cookie, if the session is no longer fresh.
             const cookie = await createSessionCookie(session.id);
             (await cookies()).set(cookie);
-            (await cookies()).set("x-openapi-token", cookie.value, { maxAge: 24 * 60 * 60, path: "/" });
-            console.log("Cookies added - %s", [
-                ...((await cookies()).has(cookie.name) ? [cookie.name] : []),
-                ...((await cookies()).has("x-openapi-token") ? ["x.openapi-token"] : [])
-            ].join(", "));
+            const cookieNames: string[] = [cookie.name];
+            if (sessionCookie && typeof sessionCookie !== "string" && typeof sessionCookie.name === "string") {
+                const apiSessionCookie = {
+                    ...["httpOnly", "secure", "partitioned"].reduce( (result, prop) => ( 
+                    prop in sessionCookie && sessionCookie[prop] ? {...result, [prop]: sessionCookie[prop]} : result), {}),
+                    ...["maxAge", "domain", "path", "expires", "sameSite"].reduce( (result, prop) => {
+                    if (prop in sessionCookie && typeof prop === "string") {
+                        return {...result, [prop]: sessionCookie[prop]};
+                    }
+                    return result;
+                }, {})
+                } as Partial<ResponseCookie>;
+                (await cookies()).set(sessionCookie.name, (typeof sessionCookie.value === "string" ? sessionCookie.value : undefined) ?? "", apiSessionCookie);
+                cookieNames.push(sessionCookie.name);
+            }
+            console.log("Cookies added - %s", (await cookies().then( (cookieJar) => (cookieNames.filter( name => cookieJar.has(name))))));
         } catch (error) {
             // session creation failed. 
             console.error("Session validation failed due error: %s", error);

@@ -57,7 +57,7 @@ export function initPool(config: Partial<PoolConfig> | undefined = undefined, de
  * exists.
  * @returns The promise of the assigned pool. 
  */
-export async function initAuthPool(config: Partial<PoolConfig> | undefined): Promise<Pool> {
+export async function initAuthPool(config?: Partial<PoolConfig> | undefined): Promise<Pool> {
     return initPool(config, getAuthDatabaseProperties(), authPool).then(
         (result) => {
             authPool = result;
