@@ -4,6 +4,12 @@
  */
 
 import { UUID } from "crypto";
+import { Permissions, validateApiRequest } from "./api_auth";
+import pino from "pino";
+import { getAPIConnection, safeRelease } from "./api_db";
+import { checkUUID } from "./modifiers";
+import { Client, PoolClient, QueryConfig, QueryResult, QueryResultRow } from "pg";
+import { join } from "path";
 
 /**
  * The reference type of the journal references.
@@ -212,3 +218,125 @@ function CreateGuidReply(guid: UUID) {
     return Response.json(guid);
 }
 
+/**
+ * The API priviledges structure. 
+ * The defaults are for required privileges.
+ */
+export interface ApiPrivileges {
+    /**
+     * The privilege to get an existing resource.
+     * @default true
+     */
+    read?: boolean;
+
+    /**
+     * The privilege to change existing resource.
+     * @default false
+     */
+    alter?: boolean;
+
+    /**
+     * The privilege to create a new resource.
+     * @default false
+     */
+    create?: boolean;
+
+    /**
+     * The privilege to remove existing resource.
+     * @default false
+     */
+    remove?: boolean;
+}
+
+/**
+ * Does the priivledges contain read permission.
+ * @param privileges The tested privileges.
+ * @returns True, if and only if the privileged structure 
+ * has read permisison.
+ */
+export function hasReadPrivilege(privileges: Permissions) {
+    return privileges.apiKey || privileges.cookieKey;
+}
+
+/**
+ * Does the priivledges contain read permission.
+ * @param privileges The tested privileges.
+ * @returns True, if and only if the privileged structure 
+ * has read permisison.
+ */
+export function hasAlterPrivilege(privileges: Permissions) {
+    return privileges.cookieKey;
+}
+
+/**
+ * Does the priivledges contain read permission.
+ * @param privileges The tested privileges.
+ * @returns True, if and only if the privileged structure 
+ * has read permisison.
+ */
+export function hasCreatePrivilege(privileges: Permissions) {
+    return privileges.cookieKey;
+}
+
+/**
+ * Does the priivledges contain read permission.
+ * @param privileges The tested privileges.
+ * @returns True, if and only if the privileged structure 
+ * has read permisison.
+ */
+export function hasRemovePrivilege(privileges: Permissions) {
+    return privileges.cookieKey;
+}
+
+/**
+ * Convert the first letter of the word into upper case. 
+ * @param source The source string.
+ * @returns The sorce with first letter converted to upper case.
+ */
+export function lcFirst(source: string): string {
+    const word = source.split(/(\p{L})/u);
+    if (word.length > 2) {
+        word[1] = word[1].toUpperCase();
+    }
+    return word.join("");
+}
+
+/**
+ * A database task possibly relying on information provided by the request.
+ */
+export type DatabaseTask<TYPE> = (dbh: Client|PoolClient, request?: Request) => Promise<[TYPE, Headers?]>|[TYPE, Headers?];
+
+/**
+ * Get resource of type. 
+ * @param request The request. 
+ * @param task The task performing the database operation. The task is only executed, if both user has required  priviledges, 
+ * and the database connection was established.
+ * @param resourceName The resource name. Used for logging.
+ * @param requiredPrivileges The privileges required for the task.
+ * @param logger The logger. 
+ * @returns The promise of the response for the resource request. 
+ */
+export async function getResource<TYPE=any>(request: Request, task: DatabaseTask<TYPE>, resourceName: string, 
+    requiredPrivileges?: ApiPrivileges, logger?:pino.BaseLogger): Promise<Response> {
+    const privileges = await validateApiRequest(request);
+        if ( hasReadPrivilege(privileges) ) {
+            // Authentication passed. 
+            logger?.debug("User authenticated. Loading data...");
+            return getAPIConnection()
+            .then(async dbh => {
+                logger?.debug("Connection established");
+                const [result, headers] =  await task(dbh, request);
+                safeRelease(dbh);
+                return Response.json(await result, {status: 200, headers});
+            }).catch(
+                (error) => {
+                    if (error instanceof Response) {
+                        return error;
+                    }
+                    return ErrorReply(503, `${lcFirst(resourceName)} API unavailable`);
+                }
+            );
+        } else {
+            return Response.json({ message: "Authentication required", code: 401 }, { status: 401 });
+        }
+}
