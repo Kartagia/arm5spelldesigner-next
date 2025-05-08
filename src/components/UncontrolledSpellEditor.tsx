@@ -12,6 +12,7 @@ import { createSpell as createApiSpell } from "@/actions/spells.actions"
 import { RDTPanel } from "./RDTPanel";
 import { logger } from "@/lib/logger";
 import { nativeEnum } from "zod";
+import { getAllRDTs } from "@/data/rdts";
 
 /**
  * Log a message along with a function.
@@ -110,7 +111,10 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
     const [technique, setTechnique] = useState(spell.technique);
     const [description, setDescription] = useState(spell.description);
     const [newSpellName, setNewSpellName] = useState("");
-    const [rdt, setRDT] = useState(createRDTSet(spell.range ?? [], spell.duration ?? [], spell.target ?? []));
+    const ranges = props.allRDTs.filter( rdt => (rdt.type === "Range")) as RDT<"Range">[];
+    const durations = props.allRDTs.filter( rdt => (rdt.type === "Duration")) as RDT<"Duration">[];
+    const targets = props.allRDTs.filter( (rdt => (rdt.type === "Target"))) as RDT<"Target">[];
+    const [rdt, setRDT] = useState(createRDTSet(spell.range ??  [], spell.duration ?? [], spell.target ?? []));
     useEffect(() => {
         logger.info("Check if important properties has changed");
         if (props.defaultValue !== defaultSpell) {
@@ -125,10 +129,10 @@ export default function UncontrolledSpellEditor( props: Omit<SpellEditorProperti
             setNewSpellName("");
             logger.debug("RDTS from %s to %s", 
                 [rdtsToString(rdt.range, "R:"), rdtsToString(rdt.duration, "D:"), rdtsToString(rdt.target, "T:")].join(", "),
-                [rdtsToString(newSpell.range ?? [], "R:"), 
-                            rdtsToString(newSpell.duration ?? [], "D:"), 
-                            rdtsToString(newSpell.target ?? [], "T:")].join(","))
-            setRDT(createRDTSet(newSpell.range ?? [], newSpell.duration ?? [], newSpell.target ?? []))
+                [rdtsToString(newSpell.range ?? ranges.slice(0,1), "R:"), 
+                            rdtsToString(newSpell.duration ??durations.slice(0,1), "D:"), 
+                            rdtsToString(newSpell.target ?? targets.slice(0,1) , "T:")].join(","))
+            setRDT(createRDTSet(newSpell.range ?? ranges.slice(0,1), newSpell.duration ?? durations.slice(0,1), newSpell.target ?? targets.slice(0,1)))
             logger.debug("Descrioption %s and %s", newSpell.description ?? "[NO DESCRIPTION]", description ?? "[NO DESCRIPTION]")
         }
     }, [props])
