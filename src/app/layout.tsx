@@ -44,12 +44,12 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${caudexSans.variable} ${caudexSansBold.variable} font-[family-name:var(--font-sans)] flex column min-h-100`}
+        className={`${caudexSans.variable} ${caudexSansBold.variable} font-[family-name:var(--font-sans)] flex column h-100`}
       >
-        <header className="header"><h1 className="title"><Suspense>{metadata.title?.toString()}</Suspense></h1></header>
-        <nav className="header row buttonbar">{userInfo ? <LogoutButton>Logout</LogoutButton> : <Link href="/login" className="button">Login</Link>}</nav>
-        <main className="main flex min-h-100">{children}</main>
-        <footer className="footer"><Image src="/arm5openlicenselogo.png" alt="Ars Magica Open License logo" width={120} height={60}/>
+        <header className="header h-15"><h1 className="title"><Suspense>{metadata.title?.toString()}</Suspense></h1></header>
+        <nav className="header h-10 row buttonbar">{userInfo ? <LogoutButton>Logout</LogoutButton> : <Link href="/login" className="button">Login</Link>}</nav>
+        <main className="main flex h-100 max-h-100">{children}</main>
+        <footer className="footer h-15"><Image src="/arm5openlicenselogo.png" alt="Ars Magica Open License logo" width={120} height={60}/>
         
         </footer>
       </body>
