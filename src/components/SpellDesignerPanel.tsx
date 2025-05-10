@@ -7,8 +7,6 @@ import { UUID } from "crypto";
 import { MouseEventHandler, useState } from "react";
 import SpellEditorComponent from "./SpellEditor";
 
-import { saveSpells } from '@/actions/spells.actions';
-
 
 /**
  * THe events related to the spell designer panel.
@@ -69,9 +67,9 @@ export type SpellDesignerPanelProps = SpellDeignerProperties & SpellDesignerEven
  * @param param0 
  * @returns The JSX component of the spell title.
  */
-function SpellTitle( { model, selected = false, onClick=undefined}: {selected?: boolean, model: SpellModel, onClick?: MouseEventHandler}) {
+function SpellTitle( { model, selected = false, onClick=undefined, ...props}: {className?: string, selected?: boolean, model: SpellModel, onClick?: MouseEventHandler}) {
     console.table({selected})
-    return (<div className={(!selected ? styles.item: styles.selectedItem)} onClick={onClick}>{model.name}({model.technique}{model.form}{model.level.toString()})</div>)
+    return (<div className={((styles.SpellTitle) + " " +(!selected ? styles.item: styles.selectedItem) + (props.className ? " " + props.className : ""))} onClick={onClick}>{model.name}({model.technique}{model.form}{model.level.toString()})</div>)
 }
 
 /**
@@ -128,27 +126,45 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
         setUnsaved(true);
     }
 
+    /**
+     * Internal action saving spells with action, and informing saving listeners.
+     * The action does also perform altering the state of hte panel as necessary.
+     * @param spells The spells saved.
+     * @param unsavedGuids The affecte UUIDs. 
+     */
     const saveChangesAction = async function (spells: SpellModel[], unsavedGuids: UUID[]|undefined) {
-        await saveSpells(spells, unsavedGuids);
-        if (props.onSaveChanges) {
-            props.onSaveChanges(spells, unsavedGuids);
-            setUnsaveGuids([]);
-            setUnsaved(false);
-            console.log("Spells saved");
-        } else {
-            setDefaultSpells(spells);
-            setUnsaveGuids([]);
-            setUnsaved(false);
-            console.log("State saved");
+        try {
+            if (props.saveChangesAction) {
+                // Using sav chagnes action.
+                console.log("Performing server action saving spells");
+                await props.saveChangesAction(spells, unsavedGuids);
+                console.log("Server action complete.")
+            }
+            if (props.onSaveChanges) {
+                props.onSaveChanges(spells, unsavedGuids);
+                setUnsaveGuids([]);
+                setUnsaved(false);
+                console.log("Spells saved");
+            } else {
+                setDefaultSpells(spells);
+                setUnsaveGuids([]);
+                setUnsaved(false);
+                console.log("State saved");
+            }
+        } catch(error) {
+            console.error("Updating spells failed due error: %s.", error);
+
         }
     };
 
     return <div className={styles.noHScroll}>
         <header className="header main"></header>
         <main className={"Main " + styles.noHScroll}>
-            <span className="LeftView">
+            <span className={"LeftView "+ styles.noHScroll}>
                 <header className="header">Spell List</header>
-                <main className="main column scroll">{spells.map( spell => (<SpellTitle selected={spell === selected} model={spell} key={getSpellKey(spell)} onClick={ (e) => {
+                <main className={ "main " + styles.SpellTitleList}><div className={styles.SpellTitleList}>{spells.map( spell => (<SpellTitle 
+                className={styles.noHScroll +" "+ styles.HStrech}
+                selected={spell === selected} model={spell} key={getSpellKey(spell)} onClick={ (e) => {
                     if (selected === spell) {
                         setSelected(undefined);
                     } else {
@@ -156,7 +172,7 @@ export function SpellDesignerPanel(props : SpellDesignerPanelProps) {
                     }
                 }
             } />)) 
-                }</main>
+                }</div></main>
                 <footer className={"footer flex row " + styles.noHScroll}>
                 <button className="flex-item" disabled={!selected} onClick={ () => {
                     /**

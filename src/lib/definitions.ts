@@ -8,6 +8,24 @@
 import { z } from "zod";
 
 /**
+ * The interface containing API session information.
+ */
+export interface ApiSessionInfo {
+    /**
+     * The API session header update details.
+     */
+    headerKey: {
+        name: string;
+        value: string;
+    },
+    /**
+     * The API session cookie. If not given, there is no cookie assigment
+     * available. 
+     */
+    sessionCookie?: string|Record<string,string|boolean>;
+}
+
+/**
  * The schema for singup form validation with zod.
  */
 export const SignupFormSchema = z.object({

@@ -6,7 +6,8 @@ import { PoolOptions } from 'pg';
  * @module config/db
  */
 
-export const sessionTimeout = 30;
+export const sessionTimeout = 1;
+export const apiSessionTimeout = 30;
 export const auth_database = "user_credentials";
 export const sessionDatabase = "user_session";
 export const userDatabase = "auth_user";
@@ -29,6 +30,8 @@ export function getAuthDatabaseProperties(): Partial<PoolOptions> {
             host: process.env.AUTH_HOST,
             port: Number(process.env.AUTH_PORT ?? "5432"),
             password: process.env.AUTH_PASSWORD,
+            idleTimeoutMillis: 100,
+            connectionTimeoutMillis: 500
         };
     }
 }/**
@@ -49,6 +52,7 @@ export function getTestAuthDatabaseProperties(): Partial<PoolOptions> {
             host: process.env.VITE_AUTH_HOST,
             port: Number(process.env.VITE_AUTH_PORT ?? "5432"),
             password: process.env.VITE_AUTH_PASSWORD,
+            connectionTimeoutMillis: 1000
         };
     }
 }

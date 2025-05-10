@@ -1,5 +1,6 @@
 "use client";
 import { signup } from "@/actions/auth.actions";
+import { ErrorList } from "@/components/ErrorList";
 import Link from "next/link";
 import { useActionState, useId } from "react";
 
@@ -40,9 +41,9 @@ export default function SignupPage() {
                     <label htmlFor={`${id}:${field.name}`}>{field.label}</label>
                     <input name={field.name} id={`${id}:${field.name}`} type={field.type} defaultValue={state?.values?.[field.name] ?? ""}></input>
                 </div>
-                {state?.errors?.[field.name] && (<div className="error form-field"><ul>{state.errors[field.name].map( error => (<li key={error}>{error}</li>))}</ul></div>)}</div>
-            ))
+                <ErrorList errors={state?.errors ?? {}} className="form-field" errorKey={field.name} /></div>))
             }
+            <ErrorList errors={state?.errors ?? {}} className="form-field" errorKey={"general"} />
             </main>
             <footer className="footer">
                 <button disabled={pending} type="submit">Create account</button>

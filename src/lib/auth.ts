@@ -1,6 +1,6 @@
 
 import 'server-only';
-import { Client, PoolClient } from 'pg';
+import { Client, DatabaseError, PoolClient } from 'pg';
 import { randomBytes, pbkdf2, timingSafeEqual, randomUUID, pbkdf2Sync } from 'node:crypto';
 import { Console, ConsoleConstructorOptions } from 'node:console';
 
@@ -243,8 +243,9 @@ export function validPassword(value: string): boolean {
  * - String indicates the name of the savepoint. 
  * - Boolean true indicates the current transaction is operated.
  * Defaults to a new autocommited transaction.
- * - A null value indicates the handle is closed at teh end of the operation. 
+ * - A null value indicates the handle is closed at the end of the operation. 
  * @returns The promise of completion.
+ * @throws {DatabaseError} The rejected value contains the database error of the failure.
  */
 export async function setPassword(dbh: Client|PoolClient, userId: string, password: string,
     transaction: boolean| string | null = null): Promise<void> {
@@ -268,6 +269,7 @@ export async function setPassword(dbh: Client|PoolClient, userId: string, passwo
             if (!transaction) {
                 await dbh.query("commit");
             }
+            resolve();
         } catch (error) {
             // Error handling.
             logger.error("setPassword: Could not update user credentials", error);
@@ -277,16 +279,21 @@ export async function setPassword(dbh: Client|PoolClient, userId: string, passwo
             if (transaction !== false && transaction !== null) {
                 dbh.query("rollback");
             }
-            throw error;
+            reject(error);
         } finally {
             if (transaction === null) {
                 if ("release" in dbh) {
-                    dbh.release();
+                    try {
+                        dbh.release();
+                    } catch(releaseError) {
+                        console.warn("Trying to release already released handle. Ignored.");
+                    }
                 } else {
                     dbh.end();
                 }
             }
         }
+
     });
 }
 

@@ -1,7 +1,7 @@
 
 import { createAuthConnection, escapeIdentifier } from '@/lib/db';
 import { setPassword, Credentials, checkUserPassword, hashPassword } from './auth';
-import { PoolClient } from 'pg';
+import { PoolClient, DatabaseError } from 'pg';
 import logger = console;
 import { Session } from 'lucia';
 import { timingSafeEqual } from 'node:crypto';
@@ -76,7 +76,7 @@ export async function loginUser(email: string, password: string): Promise<UserIn
                     // Validating the user. 
                     return {userInfo: {...result.rows[0], password: undefined, salt: undefined}, 
                     row: {password: result.rows[0].password, salt: result.rows[0].salt}, 
-                    hash: await hashPassword(password, result.rows[0].salt)};
+                    hash: await hashPassword(password.normalize(), result.rows[0].salt)};
                 }
               },
                 (error) => {
@@ -145,7 +145,7 @@ export async function getAllUsers(transaction: PoolClient | undefined = undefine
  * @param details The user details.
  * @param credentials The user credentials.
  * @param transaction The transaction used to add user. 
- * @returns The promsie of completion.
+ * @returns The promsie of created user identifier.
  */
 export async function createUser(details: NewUserInfo, credentials: NewCredentials, transaction: PoolClient | undefined = undefined): Promise<string> {
 
@@ -165,19 +165,31 @@ export async function createUser(details: NewUserInfo, credentials: NewCredentia
                 /**
                  * @todo Remove debug output
                  */
-                await dbh.query("insert into auth_user (id, email, expires) values ($1, $2, NOW() + make_interval(hours=>$3))",
+                await dbh.query("insert into auth_user (id, email, expires) values ($1, $2, NOW() + make_interval(days=>$3))",
                     [
                         id, details.email, sessionTimeout // details.displayName || null, details.verified ?? false
-                    ]);
+                    ]).catch( (error) => {
+                        // The PG error happened - determining which field has the problem.
+                        if (error instanceof DatabaseError) {
+                            if (error.code === "23505") {
+                                // The unique constraint failed - this means the email address is invalid.
+                                throw { message: "Reserved email address.", 
+                                    errors: {"email": ["The email address was not acceptable. Please choose new email address."]} 
+                                };
+                            }
+                        }
+                    });
                 console.log("Created user entry");
-                await setPassword(dbh, id, credentials.password).then(
+                await setPassword(dbh, id, credentials.password.normalize()).then(
                     (result) => {
                         console.log("Password set");
                         return result;
                     },
-                    (error) => {
-                        console.error("Could not set password");
-                        throw error;
+                    (error: DatabaseError) => {
+                        console.error();
+                        throw { message: "Could not set password", errors: {
+                            "api": [error.message],
+                            "general": ["Setting credentials failed"]}}
                     }
                 );
                 console.log("Created credentials ");
