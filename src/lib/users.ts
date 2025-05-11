@@ -6,6 +6,7 @@ import logger = console;
 import { Session } from 'lucia';
 import { timingSafeEqual } from 'node:crypto';
 import { sessionTimeout } from './dbConfig';
+import { safeRelease } from './api_db';
 
 /**
  * Users module for handling users. 
@@ -197,7 +198,7 @@ export async function createUser(details: NewUserInfo, credentials: NewCredentia
                 if (!transaction) {
                     console.log("Committing transaction...");
                     await dbh.query("commit");
-                    dbh.release();
+                    await safeRelease(dbh);
                     console.log("Transaction commited");
                 }
                 resolve(id);
