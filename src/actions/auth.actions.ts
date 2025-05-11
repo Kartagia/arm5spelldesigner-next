@@ -1,9 +1,8 @@
 "use server";
 
-import { createApiSession, getApiSession } from "@/lib/api_auth";
-import { ErrorContent, UnauthorizedReply } from "@/lib/api_data";
+import { getApiSession } from "@/lib/api_auth";
 import { createApiKey, EmailField, PasswordField, validPassword } from "@/lib/auth";
-import { ErrorStruct, SignupFormSchema, SignupFormState, LoginFormState, LoginFormSchema, ApiSessionInfo } from "@/lib/definitions";
+import { SignupFormSchema, SignupFormState, LoginFormState, LoginFormSchema, ApiSessionInfo } from "@/lib/definitions";
 import { stringifyErrors } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { createSession, createSessionCookie, logout as endSession } from "@/lib/session";
@@ -11,8 +10,7 @@ import { createUser, loginUser } from "@/lib/users";
 import { Cookie } from "lucia";
 import { revalidatePath } from "next/cache";
 import { ResponseCookie, ResponseCookies } from "next/dist/compiled/@edge-runtime/cookies";
-import { COOKIE_NAME_PRERENDER_BYPASS } from "next/dist/server/api-utils";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export async function updateSessionAction(sessionCookie: Cookie) {
