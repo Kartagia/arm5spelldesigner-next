@@ -228,10 +228,6 @@ export async function createApiSession(owner: string, dbh?: PoolClient | Client)
     if (apiKey) {
         // Get expiration time.
         const connection = dbh ?? await getAuthConnection();
-        const connId = Math.floor(Math.random()*Number.MAX_VALUE).toString(36);
-        if (!dbh) {
-            logger.debug("Leasing authentication connection %s", connId);
-        }
         const details = await connection.query<{ key: string, expires: Date }>(
             {
                 text: "INSERT INTO api_session(id, token, expires, key) VALUES ($1, $2, NOW() + make_interval(days=>$3), $4) " +
@@ -249,7 +245,7 @@ export async function createApiSession(owner: string, dbh?: PoolClient | Client)
                                 sameSite: "Strict",
                                 httpOnly: "HttpOnly",
                                 Path: process.env.API_ROOT ?? "/",
-                                expires: result.rows[0].expires.toUTCString()
+                                expires: result.rows[0].expires?.toUTCString()
                             }
                         };
                     } else {
@@ -276,7 +272,6 @@ export async function createApiSession(owner: string, dbh?: PoolClient | Client)
             );
         if (!dbh) {
             // Releaseing the created connection.
-            logger.debug("Releasing authentication connection %s", connId);
             safeRelease(connection);
         }
         return details;
@@ -396,9 +391,6 @@ export async function validateApiRequest(request: Request): Promise<Permissions>
     const apiKey = request.headers.get(authHeader);
     if (await validApiKey(apiKey)) {
         result.apiKey = true;
-        logger.info("Checking API key: [SUCCESS]");
-    } else {
-        logger.info("Checking API key: [FAILED]");
     }
 
     // Test cookies. 
@@ -455,9 +447,6 @@ export async function validateApiRequest(request: Request): Promise<Permissions>
             });
         if (userInfo) {
             result.cookieKey = true;
-            logger.info("Checking session key: [SUCCEEDED]");
-        } else {
-            logger.info("Checking session key: [FAILED]");
         }
     }
 

@@ -123,20 +123,16 @@ export async function executeQuery<TYPE extends QueryResultRow = any>(query: Sql
         logger.log("Trying unpooled access");
         return { dbh: await getAPIConnection(false), finishHim: true };
     }).then( async ({dbh, finishHim}) => {
-        const connId = createConnectionId();
-        logger.debug("Connection[%s] created", connId);
         try {
             const result = await query(dbh);
             if (finishHim) {
                 await safeRelease(dbh);
-                logger.debug("Connection[%s] released", connId);
             }
             return result;
         } catch( error ) {
             logger.error("Query failed: %s", error);
             if (finishHim) {
                 await safeRelease(dbh);
-                logger.debug("Connection[%s] released", connId);
             }
             throw error;
         }
