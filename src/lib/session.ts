@@ -7,10 +7,9 @@ import { Lucia, TimeSpan, Cookie, CookieAttributes } from "lucia";
 import { UserInfo, getUserInfo } from "./users";
 import { getAuthDatabaseProperties } from './dbConfig';
 import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
-import { Client, escapeIdentifier } from 'pg';
-import { pbkdf2, pbkdf2Sync, randomUUID, UUID } from 'crypto';
-import { hashPassword, hashToken } from './auth';
-import { queryObjects } from 'v8';
+import { Client, Pool } from 'pg';
+import { randomUUID, UUID } from 'crypto';
+import { hashToken } from './auth';
 import { sessionTimeout } from './dbConfig';
 
 /**
@@ -30,8 +29,8 @@ declare module "lucia" {
 }
 
 
-const pool = new Client(getAuthDatabaseProperties());
-pool.connect();
+const pool = new Pool(getAuthDatabaseProperties());
+
 const adapter = new NodePostgresAdapter(pool, {
     /**
      * The users table name.
