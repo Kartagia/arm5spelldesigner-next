@@ -1,5 +1,6 @@
 
-import { commitTransaction, createAuthConnection, escapeIdentifier, rollbackTransaction, startTransaction, TransactionOptions } from '@/lib/db';
+import { createAuthConnection, escapeIdentifier } from '@/lib/db';
+import { commitTransaction, rollbackTransaction, startTransaction, TransactionOptions } from './transactions';
 import { setPassword, Credentials, checkUserPassword, hashPassword } from './auth';
 import { PoolClient, DatabaseError } from 'pg';
 import logger = console;
