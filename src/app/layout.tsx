@@ -38,7 +38,14 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const {userInfo} = await validateSession( (await cookies()).get("auth_session")?.value ?? "");
+  const {userInfo} = await validateSession( (await cookies()).get("auth_session")?.value ?? "").catch(
+    (error) => {
+      console.error("Could not get valid session", error);
+      console.log("Current authentication configuration: ", process.env.DATABASE_URL);
+      
+      return {userInfo: undefined};
+    }
+  );
 
 
   return (
