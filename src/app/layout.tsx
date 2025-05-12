@@ -22,40 +22,24 @@ const caudexSansBold = Caudex({
 })
 
 
-async function getDictionary( lang: string) {
-  return {
-    title: "Ars Magica Campaign Aid",
-    description: "Ars magica campaign aid.",
-  }
-}
 
 export const metadata : Metadata = {
-  ...(await getDictionary("en-US"))
-}
+    title: "Ars Magica Campaign Aid",
+    description: "Ars magica campaign aid.",
+};
 
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const {userInfo} = await validateSession( (await cookies()).get("auth_session")?.value ?? "").catch(
-    (error) => {
-      console.error("Could not get valid session", error);
-      console.log("Current authentication configuration: ", process.env.DATABASE_URL);
-      
-      return {userInfo: undefined};
-    }
-  );
-
-
   return (
     <html lang="en">
       <body
         className={`${caudexSans.variable} ${caudexSansBold.variable} font-[family-name:var(--font-sans)] flex column w-full h-full`}
       >
-        <header className="header h-auto w-full"><h1 className="title"><Suspense>{metadata.title?.toString()}</Suspense></h1></header>
-        <nav className="header h-auto w-full buttonbar">{userInfo ? <LogoutButton>Logout</LogoutButton> : <Link href="/login" className="button">Login</Link>}</nav>
-        <main className="main flex h-full w-full flex column">{children}</main>
+        <header className="header h-auto w-full"><h1 className="title"><Suspense fallback={process.env.APPLICATION_NAME ?? "Loading..."}>{metadata.title?.toString()}</Suspense></h1></header>
+        <main className="main flex h-full w-full flex column overflow-y">{children}</main>
         <footer className="footer h-auto w-full flex column flex-item-remainder"><Image src="/arm5openlicenselogo.png" alt="Ars Magica Open License logo" width={120} height={60}/>
         
         </footer>
