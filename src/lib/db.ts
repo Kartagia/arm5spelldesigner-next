@@ -1,6 +1,7 @@
 import 'server-only';
 import { Client, escapeIdentifier, escapeLiteral, Pool, PoolClient, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 import { getApiDatabaseProperties, getAuthDatabaseProperties, getTestAuthDatabaseProperties } from './dbConfig';
+import pino from 'pino';
 export { escapeIdentifier, escapeLiteral } from 'pg';
 /**
  * The database connection module.
@@ -1033,6 +1034,95 @@ export async function deleteApiDb(dbh: PoolClient | Client, {
         }).catch(err => {
 
         });
+}
+
+/////////////////////////////////////
+// Transactions
+/////////////////////////////////////
+
+/**
+ * Create a new transaction identifier.
+ * @returns The transaction identifier.
+ */
+export function createTransactionId(): string {
+    return Math.floor(Math.random()*Number.MAX_SAFE_INTEGER).toString(36);
+}
+
+/**
+ * Transaciton options.
+ */
+export interface TransactionOptions {
+    /**
+     * The transaction identifier. 
+     * @default createTransactionId() A newly created transaction id.
+     */
+    id?: string;
+
+    /**
+     * Are transactions disabled. 
+     */
+    disabled?: boolean;
+
+    /**
+     * The logger used to log errors. 
+     */
+    logger?: pino.BaseLogger|Console;
+}
+
+export async function startTransaction(dbh: PoolClient|Client, options: TransactionOptions = {}): Promise<string|undefined> {
+    const id = options.id ?? createTransactionId();
+    return dbh.query("BEGIN").then(
+        () => {
+            (options.logger ?? console).debug("Transaction %s created.", id);
+            return id;
+        },
+        (error) => {
+            (options.logger ?? console).error("Trasaction creation failed. %s", error);
+            return undefined;
+        }
+    )   
+}
+
+/**
+ * Commit a transaction. 
+ * @param dbh The database connection.
+ * @param options The transaction options.
+ * @returns Did the commit happen.
+ */
+export async function commitTransaction(dbh: PoolClient|Client, options: TransactionOptions = {}): Promise<boolean> {
+    const id = options.id ?? "without id";
+    return dbh.query("COMMIT").then(
+        () => {
+            (options.logger ?? console).debug("Transaction %s committed.", id);
+            return true;
+        },
+        (error) => {
+            (options.logger ?? console).error("Transaction %s commit failed. %s", id, error);
+            return false;
+        }
+    )   
+
+}
+
+/**
+ * Roll back a transaction. 
+ * @param dbh The database connection.
+ * @param options The transaction options.
+ * @returns Did the roll back happen.
+ */
+export async function rollbackTransaction(dbh: PoolClient|Client, options: TransactionOptions = {}): Promise<boolean> {
+    const id = options.id ?? "without id";
+    return dbh.query("ROLLBACK").then(
+        () => {
+            (options.logger ?? console).debug("Transaction %s rolled back.", id);
+            return true;
+        },
+        (error) => {
+            (options.logger ?? console).error("Transaction %s roll back failed. %s", id, error);
+            return false;
+        }
+    )   
+
 }
 
 /**
