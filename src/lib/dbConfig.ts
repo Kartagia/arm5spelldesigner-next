@@ -18,9 +18,9 @@ export const userDatabase = "auth_user";
  */
 
 export function getAuthDatabaseProperties(): Partial<PoolOptions> {
-    if (process.env.AUTH_CONNECT) {
+    if (process.env.AUTH_CONNECT ?? process.env.DATABASE_URL) {
         return {
-            connectionString: process.env.AUTH_CONNECT
+            connectionString: process.env.AUTH_CONNECT ?? process.env.DATABASE_URL
         };
     } else {
 
@@ -62,9 +62,9 @@ export function getTestAuthDatabaseProperties(): Partial<PoolOptions> {
  */
 
 export function getApiDatabaseProperties(): Partial<PoolOptions> {
-    if (process.env.DATA_CONNECT) {
+    if (process.env.DATA_CONNECT ?? process.env.DATABASE_URL) {
         return {
-            connectionString: process.env.DATA_CONNECT
+            connectionString: process.env.DATA_CONNECT ?? process.env.DATABASE_URL
         };
     } else {
         return {
