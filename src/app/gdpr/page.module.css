@@ -1,8 +1,6 @@
 .gdpr {
-    font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
-    background-color: green;
+    font-family: Calibri, 'Trebuchet MS', sans-serif;
     scrollbar-width: 2px;
-    scrollbar-color: green;
     height: 100%;
     flex: 1 1 auto;
 }
@@ -14,25 +12,13 @@
 
 .gdpr main {
     scrollbar-width: 1px;
-    scrollbar-color: blue;
-    background-color: yellow;
-    scrollbar-width: 2px;
 }
 
-.gdpr main > div {
-    scrollbar-face-color: blue;
-    color: blue;
-}
 
 .gdpr header {
-    background-color: green;
-    scrollbar-color: blue;
     scrollbar-width: 1px;
 }
 
-.gdrp > Topic {
-    background-color: blue;
-}
 
 .gdpr  header {
     font-size: larger;
