@@ -3,6 +3,8 @@ import 'server-only';
 import { Client, DatabaseError, PoolClient } from 'pg';
 import { randomBytes, pbkdf2, timingSafeEqual, randomUUID, pbkdf2Sync } from 'node:crypto';
 import { Console, ConsoleConstructorOptions } from 'node:console';
+import { safeRelease } from './api_db';
+import { commitTransaction, releaseSavepoint, rollbackTransaction, startTransaction, TransactionOptions } from './db';
 
 class DebugConsole extends Console {
 
@@ -255,9 +257,13 @@ export async function setPassword(dbh: Client|PoolClient, userId: string, passwo
     }
 
     return new Promise(async (resolve, reject) => {
+        const transactionInfo: TransactionOptions = {};
+        if (typeof transaction === "string") {
+            transactionInfo.savePoint = transaction;
+        }
         try {
             if (transaction === false) {
-                await dbh.query("start transaction");
+                transactionInfo.id = await startTransaction(dbh, transactionInfo);
             }
             const salt = await generateSalt();
             await dbh.query(
@@ -265,32 +271,33 @@ export async function setPassword(dbh: Client|PoolClient, userId: string, passwo
                 "VALUES ($1, $2, $3)",
                 [userId, await hashPassword(password, salt), salt]
             );
-            logger.log("The password set for user %s", userId);
-            if (!transaction) {
-                await dbh.query("commit");
+            if (transactionInfo.savePoint) {
+                if (await releaseSavepoint(dbh, transactionInfo)) {
+                    // Removing the savepoint. 
+                    delete(transactionInfo.savePoint);
+                }
+            } else if (!transaction) {
+                if (await commitTransaction(dbh, transactionInfo) && transactionInfo.id) {
+                    delete(transactionInfo.id);
+                }
             }
             resolve();
         } catch (error) {
             // Error handling.
             logger.error("setPassword: Could not update user credentials", error);
-            if (typeof transaction == "string") {
-                dbh.query("rollback to " + transaction);
-            }
-            if (transaction !== false && transaction !== null) {
-                dbh.query("rollback");
+            if (transactionInfo.savePoint) {
+                if (await rollbackTransaction(dbh, transactionInfo)) {
+                    delete(transactionInfo.savePoint);
+                }
+            } else if (transaction !== false && transaction !== null) {
+                if (await rollbackTransaction(dbh, transactionInfo) && transactionInfo.id) {
+                    delete(transactionInfo.id);
+                }
             }
             reject(error);
         } finally {
             if (transaction === null) {
-                if ("release" in dbh) {
-                    try {
-                        dbh.release();
-                    } catch(releaseError) {
-                        console.warn("Trying to release already released handle. Ignored.");
-                    }
-                } else {
-                    dbh.end();
-                }
+                safeRelease(dbh);
             }
         }
 
