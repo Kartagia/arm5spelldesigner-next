@@ -30,14 +30,11 @@ export async function signup(previousState: SignupFormState, formData: FormData)
     };
     const validatedFields = SignupFormSchema.safeParse(values);
     if (!validatedFields.success) {
-        console.log("Creating account with %d invalid fields", Object.keys(validatedFields.error.flatten().fieldErrors).length);
         return {
             values: { ...values } as Record<string, string>,
             errors: { ...validatedFields.error.flatten().fieldErrors } as Record<string, string[]>,
             origin: previousState?.origin?.toString()
         };
-    } else {
-        console.log("All fields are valid");
     }
 
     /**
@@ -71,7 +68,7 @@ export async function signup(previousState: SignupFormState, formData: FormData)
         },
         (error) => {
             if ("errors" in error) {
-                console.log("Creating user %s failed due errors %s", stringifyErrors(error.errors, { prefix: "\n", messageSeparator: "\n- " }));
+                console.error("Creating user %s failed due errors %s", stringifyErrors(error.errors, { prefix: "\n", messageSeparator: "\n- " }));
                 return {
                     values: values as Record<string, string>,
                     errors: error.errors
@@ -102,7 +99,6 @@ export async function login(previousState: LoginFormState, formData: FormData) {
     if (validatedFields.success) {
         try {
             const user = await loginUser(validatedFields.data.email, validatedFields.data.password);
-            console.log("Got user information for user %s: %s", user.id, user.email);
             const {headerKey, sessionCookie} : ApiSessionInfo = await getApiSession(user.id);
             if (!headerKey.value) {
                 // The key creation failed. 
@@ -117,7 +113,7 @@ export async function login(previousState: LoginFormState, formData: FormData) {
             // Create the Next application session. 
             const session = await createSession(user.id, headerKey.value).then(
                 (result) => {
-                    console.log("Got session with id %s", result.id);
+                    console.log("Session with id %s", result.id);
                     return result;
                 },
                 (error) => {
@@ -143,7 +139,6 @@ export async function login(previousState: LoginFormState, formData: FormData) {
                 (await cookies()).set(sessionCookie.name, (typeof sessionCookie.value === "string" ? sessionCookie.value : undefined) ?? "", apiSessionCookie);
                 cookieNames.push(sessionCookie.name);
             }
-            console.log("Cookies added - %s", (await cookies().then( (cookieJar) => (cookieNames.filter( name => cookieJar.has(name))))));
         } catch (error) {
             // session creation failed. 
             console.error("Session validation failed due error: %s", error);
@@ -170,14 +165,14 @@ export async function login(previousState: LoginFormState, formData: FormData) {
 
 }
 
+/**
+ * Log out th ecurrent session.
+ */
 export async function logout() {
-    console.log("Starting logout");
     const cookieJar = await cookies();
     const sessionId = cookieJar.get("auth_session")?.value;
-    console.log("Logging out session %s", sessionId);
     const newCookie = await endSession(sessionId ?? "");
     cookieJar.set(newCookie);
-    console.log("Logged out");
     revalidatePath("/", "layout");
     redirect("/login");
 }
