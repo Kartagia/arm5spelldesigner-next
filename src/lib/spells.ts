@@ -101,7 +101,7 @@ export function checkSpell(value: any, options: {message?: string} = {}) : Spell
         ["form", "technique"].forEach( (prop) => {
             if (! (prop in value) ) {
                 throw SyntaxError(message, {cause: `Missing required property ${prop}`});
-            } else if (!value[prop] || !value[prop]?.matches(/^[A-Z][a-z]{1,4}$$/) ) {
+            } else if (!value[prop] || !(/^[A-Z][a-z]{1,4}$/.test(value[prop])) ) {
                 throw SyntaxError(message, {cause: `Invalid property ${prop}`});
             }
         });
