@@ -1,10 +1,10 @@
 
-@admin_api_key={{$dotenv DATA_API_KEY}}
-@user_api_key={{$dotenv USER_API_KEY}}
-@api_user={{$dotenv API_USER}}
-@api_secret={{$dotenv API_PASSWORD}}
+@admin_api_key={{$dotenv LOCAL_API_KEY}}
+@user_api_key={{$dotenv LOCAL_USER_API_KEY}}
+@api_user={{$dotenv LOCAL_API_USER}}
+@api_secret={{$dotenv LOCAL_API_PASSWORD}}
 #@api_host=https://arm5spelldesigner-64b342af19e4.herokuapp.com/
-@api_host=http://localhost:5006/
+@api_host=http://localhost:3000/
 
 ###
 GET {{api_host}}arm5/spellguidelines
@@ -30,6 +30,49 @@ x-openapi-token: {{user_api_key}}
 GET {{api_host}}arm5/spells
 x-openapi-token: {{admin_api_key}}
 Accept: application/json
+
+### Get all RDTs
+GET {{api_host}}arm5/rdts
+x-openapi-token: {{admin_api_key}}
+Accept: application/json
+
+
+### Create a new spell
+POST {{api_host}}arm5/spells
+x-openapi-token: {{admin_api_key}}
+Accept: application/json
+Content-Type: application/json
+Cookie: x-openapi-token={{admin_api_key}}; Path={{api_host}}
+
+{
+    "name": "New Spell",
+    "level": 5,
+    "technique": "Cr",
+    "form": "Au",
+    "desciption": "Test spell which does something",
+    "range": ["00000000-0000-0000-0000-000000000001"],
+    "duration": ["00000000-0000-0000-0000-000000000008"],
+    "target": ["00000000-0000-0000-0000-000000000010"]
+}
+
+### Create a new spell
+POST {{api_host}}arm5/spells
+x-openapi-token: {{user_api_key}}
+Accept: application/json
+Content-Type: application/json
+Cookie: x-openapi-token={{user_api_key}}; Path={{api_host}}
+
+{
+    "name": "New Spell",
+    "level": 5,
+    "technique": "Cr",
+    "form": "Au",
+    "desciption": "Test spell which does something",
+    "range": ["00000000-0000-0000-0000-000000000001"],
+    "duration": ["00000000-0000-0000-0000-000000000008"],
+    "target": ["00000000-0000-0000-0000-000000000010"]
+}
+
 
 
 ### With user api key
