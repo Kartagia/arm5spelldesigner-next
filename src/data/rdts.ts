@@ -1,6 +1,6 @@
 
 import { createApiConnection } from "@/lib/db";
-import { Range, Duration, Target, RDT } from "@/lib/modifiers"
+import { Range, Duration, Target, RDT, createUUID } from "@/lib/modifiers"
 import { randomUUID, UUID } from "crypto";
 
 
@@ -15,14 +15,15 @@ const rdts = {
     Target:[] as RDT<"Target">[]
 } as RdtStorage<string>;
 
+let baseId = 1;
 rdts.Range = ["Personal", ["Touch", "Eye"], "Voice", "Sight", "Arcane Connection"].flatMap(
-            (range, index) => ((Array.isArray(range) ? range : [range]).map((rdt) => Range(rdt, index))
+            (range, index) => ((Array.isArray(range) ? range : [range]).map((rdt) => Range(rdt, index, undefined, createUUID(baseId++)))
             ));
 rdts.Duration =  ["Momentary", ["Concentration", "Diameter"], "Sun", "Moon", "Year"].flatMap(
-    (range, index) => ((Array.isArray(range) ? range : [range]).map((rdt) => Duration(rdt, index))
+    (range, index) => ((Array.isArray(range) ? range : [range]).map((rdt) => Duration(rdt, index, undefined, createUUID(baseId++)))
     ));
 rdts.Target = ["Individual", "Part", ["Group", "Room"], "Structure", "Boundary"].flatMap(
-    (range, index) => ((Array.isArray(range) ? range : [range]).map((rdt) => Target(rdt, index))
+    (range, index) => ((Array.isArray(range) ? range : [range]).map((rdt) => Target(rdt, index, undefined, createUUID(baseId++)))
     ));
 
 /**
