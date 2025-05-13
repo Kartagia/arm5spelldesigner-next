@@ -3,8 +3,8 @@
 @user_api_key={{$dotenv USER_API_KEY}}
 @api_user={{$dotenv API_USER}}
 @api_secret={{$dotenv API_PASSWORD}}
-
-@api_host=https://arm5spelldesigner-64b342af19e4.herokuapp.com/
+#@api_host=https://arm5spelldesigner-64b342af19e4.herokuapp.com/
+@api_host=http://localhost:5006/
 
 ###
 GET {{api_host}}arm5/spellguidelines
