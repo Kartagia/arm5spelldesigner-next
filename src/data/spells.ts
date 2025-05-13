@@ -178,7 +178,6 @@ export async function convertSpellToApi(spell: SpellModel | NewSpellModel): Prom
 export async function convertApiToSpell(spellApi: ApiSpellModel): Promise<SpellModel> {
 
     console.group("Covnerting spell");
-    console.dir(spellApi);
 
     /**
      * Get art key, if needed.
@@ -236,7 +235,6 @@ export async function convertApiToSpell(spellApi: ApiSpellModel): Promise<SpellM
         duration: await getRDTValue<"Duration">(spellApi.duration, "Duration"),
         target: await getRDTValue<"Target">(spellApi.target, "Target"),
     };
-    console.dir(result);
     console.groupEnd();
     return checkSpell(result);
 }
