@@ -19,14 +19,20 @@ export const userDatabase = "auth_user";
 
 export function getAuthDatabaseProperties(): Partial<PoolOptions> {
     if (process.env.AUTH_CONNECT ?? process.env.DATABASE_URL) {
-        return {
-            connectionString: process.env.AUTH_CONNECT ?? process.env.DATABASE_URL,
-            ssl: {
-                rejectUnauthorized: false
+        const url = process.env.AUTH_CONNECT ?? process.env.DATABASE_URL;
+        if (url && /^socket:|^\//.test(url)) {
+            return {
+                connectionString: url
             }
-        };
+        } else {
+            return {
+                connectionString: process.env.AUTH_CONNECT ?? process.env.DATABASE_URL,
+                ssl: {
+                    rejectUnauthorized: false
+                }
+            };
+        }
     } else {
-
         return {
             database: process.env.AUTH_DATABASE,
             user: process.env.AUTH_USER,
@@ -66,12 +72,19 @@ export function getTestAuthDatabaseProperties(): Partial<PoolOptions> {
 
 export function getApiDatabaseProperties(): Partial<PoolOptions> {
     if (process.env.DATA_CONNECT ?? process.env.DATABASE_URL) {
-        return {
-            connectionString: process.env.DATA_CONNECT ?? process.env.DATABASE_URL,
-            ssl: {
-                rejectUnauthorized: false
+        const url = process.env.DATA_CONNECT ?? process.env.DATABASE_URL;
+        if (url && /^socket:|^\//.test(url)) {
+            return {
+                connectionString: url
             }
-        };
+        } else {
+            return {
+                connectionString: process.env.DATA_CONNECT ?? process.env.DATABASE_URL,
+                ssl: {
+                    rejectUnauthorized: false
+                }
+            };
+        }
     } else {
         return {
             database: process.env.DATA_DATABASE,
