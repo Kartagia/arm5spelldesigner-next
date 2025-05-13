@@ -13,6 +13,7 @@ import { getAllArts, getAllTechniques } from "./arts";
 import { logger } from "@/lib/api_auth";
 import { error } from "console";
 import { createApiConnection } from "@/lib/db";
+import { safeRelease } from "@/lib/api_db";
 
 const allRdts = await getAllRDTs();
 
@@ -56,8 +57,6 @@ var spellStore: SpellModel[] = [
 
 export async function getAllSpells(): Promise<SpellModel[]> {
 
-    return [...spellStore];
-
     const spells = await createApiConnection().then(
 
         (dbh) => {
@@ -68,7 +67,7 @@ export async function getAllSpells(): Promise<SpellModel[]> {
                         return {...(await convertApiToSpell(entry.value)), guid: entry.guid};
                     }));
                 }
-            )
+            ).finally( () => { safeRelease(dbh)});
         }
     ).catch( (error) => {
         logger.error(error, "Could not retrieve spells");
@@ -126,6 +125,11 @@ export interface ApiSpellModel {
 
 export type NewApiSpellModel = Omit<ApiSpellModel, "guid">
 
+/**
+ * Convert spell model to Api spell.
+ * @param spell The conveted spell. 
+ * @returns The spell model, or a new spell model, of the given spell.
+ */
 export async function convertSpellToApi(spell: SpellModel | NewSpellModel): Promise<ApiSpellModel | NewApiSpellModel> {
 
     // Create RDTs for the RDTs not yet implemented.
@@ -173,9 +177,21 @@ export async function convertSpellToApi(spell: SpellModel | NewSpellModel): Prom
  */
 export async function convertApiToSpell(spellApi: ApiSpellModel): Promise<SpellModel> {
 
+    console.group("Covnerting spell");
+    console.dir(spellApi);
+
+    /**
+     * Get art key, if needed.
+     * @param value The value, which is either art, guid or 
+     * @param taskList The optional task list to store the tasks fo seeking art keys.
+     * @returns The promise of the art key.
+     */
     async function getArtKeyIfNeeded<TYPE extends string>(value: Reference<TYPE> | string, taskList?: Promise<any>[]): Promise<string> {
         if (typeof value === "string") {
             return value;
+        } else if (value.type && !value.type.startsWith("art.")) {
+            // Not a reference to an art. 
+            throw "Not an art reference!";
         } else if (taskList) {
             const result: Promise<string> = getAllArts().then(arts => (arts.find(art => (art.guid === value.guid))))
                 .then((res) => { if (res) { return res.abbrev; } else { throw "Not found" } });
@@ -187,7 +203,7 @@ export async function convertApiToSpell(spellApi: ApiSpellModel): Promise<SpellM
             if (result) {
                 return result.abbrev;
             } else {
-                throw "Not found";
+                throw "Art not found";
             }
         }
     }
@@ -217,9 +233,11 @@ export async function convertApiToSpell(spellApi: ApiSpellModel): Promise<SpellM
         technique: await getArtKeyIfNeeded(spellApi.technique),
         form: await getArtKeyIfNeeded(spellApi.form),
         range: await getRDTValue<"Range">(spellApi.range, "Range"),
-        duration: await getRDTValue<"Duration">(spellApi.range, "Duration"),
-        target: await getRDTValue<"Target">(spellApi.range, "Target"),
+        duration: await getRDTValue<"Duration">(spellApi.duration, "Duration"),
+        target: await getRDTValue<"Target">(spellApi.target, "Target"),
     };
+    console.dir(result);
+    console.groupEnd();
     return checkSpell(result);
 }
 
