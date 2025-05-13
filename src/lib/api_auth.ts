@@ -403,7 +403,7 @@ export async function validateApiRequest(request: Request): Promise<Permissions>
                 logger.warn(err, "Validate Api Request: Could not hash the token");
                 return "";
             });
-            const validSession = await dbh.query("SELECT true FROM api_session WHERE token=$1 AND NOW() < expires", [token]).then(
+            const validSession = await dbh.query("SELECT true FROM api_session WHERE token=$1 AND NOW() < expires", [sought]).then(
                 result => {
                     return (result.rowCount ?? 0) > 0;
                 }
@@ -411,6 +411,8 @@ export async function validateApiRequest(request: Request): Promise<Permissions>
             safeRelease(dbh);
             if (validSession) {
                 result.cookieKey = true;
+            } else if (process.env.NODE_ENV === "development") {
+                logger.debug("Could not find token %s for api key %s", sought, token);
             }
         }).catch(
             error => {
