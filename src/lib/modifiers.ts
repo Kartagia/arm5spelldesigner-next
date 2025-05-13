@@ -143,11 +143,22 @@ export function equivalentType<TYPE extends string>(tested: RDT<TYPE>, other: RD
     return subType === tested.subTypes;
 }
 
+/**
+ * Is a value a valid UUID.
+ * @param value The tested value.
+ * @returns True, if and only if the value is a valid UUID. 
+ */
 export function validUUID(value: any) {
 
     return typeof value === "string" && /^\p{Hex_Digit}{8}(?:-\p{Hex_Digit}{4}){3}-\p{Hex_Digit}{12}$/u.test(value);
 }
 
+/**
+ * Check validity of an UUID. 
+ * @param value The tested value.
+ * @returns Valid UUID, if the UUID was valid.
+ * @throws {SyntaxError} The UUID was not a valid UUID.
+ */
 export function checkUUID(value: any): UUID {
     if (validUUID(value)) {
         return value as UUID;
@@ -156,6 +167,11 @@ export function checkUUID(value: any): UUID {
     }
 }
 
+/**
+ * A supplier of UUID values. 
+ * @param uuids The UUIDS returned by the supplier.
+ * @returns The supllier of a set of UUIDs.
+ */
 export function UUIDSupplier(uuids: Readonly<UUID[]>): Supplier<UUID[]> {
 
     return () => {
@@ -324,3 +340,21 @@ export function changeRDT<TYPE extends string>(current: RDT<TYPE>[], index: numb
     logger.debug("The original is equal to new: %s", Object.is(result, current));
     return result;
 }
+
+/**
+ * Create a new UUID from value.
+ * @param value Teh value converted to UUID:
+ * @returns A valid UUID generated from the value.
+ * @throws {SyntaxError} The value was not suitable for UUID. 
+ */
+export function createUUID(value: number): UUID {
+    if (Number.isSafeInteger(value) && value >= 0) {
+        const base = value.toString(16);
+        const baseUUID = '0'.repeat(128 / 4 - base.length) + base;
+        return checkUUID([[0, 8], [8, 12], [12, 16], [16, 20], [20, 32]].reduce(
+            (result: string[], [start, end]) => ([...result, baseUUID.substring(start, end)]), []).join("-"));
+    } else {
+        throw new SyntaxError("Value cannot be converted into UUID");
+    }
+}
+
