@@ -64,14 +64,14 @@ CREATE TABLE public.secondaryrdts (
 -- Name: api_rdts_secondary; Type: VIEW; Schema: public; Owner: -
 --
 
-drop view if exists api_rdts_secondary cascade;
-create view api_rdts_secondary as 
+drop view if exists public.api_rdts_secondary cascade;
+create view public.api_rdts_secondary as 
   select rdtref.guid,
     rdtref.type as ref_type,
-    rdts.type as type,
-    modifier,
-    name,
-    description,
+    public.rdts.type as type,
+    public.rdts.modifier,
+    public.rdts.name,
+    public.rdts.description,
     S.rdt_id as secondary_id, 
     S.guid as secondary_guid
   from ((( SELECT ref_info_1.guid,
@@ -81,7 +81,7 @@ create view api_rdts_secondary as
            FROM public.ref_info ref_info_1
           WHERE (((ref_info_1.type)::text ~~ 'rdt.%'::text) OR ((ref_info_1.type)::text = 'rdt'::text))) as rdtref
     join public.rdts using (id))
-    left outer join (select rdt_id, ref_info_2.guid, parent_id from secondaryrdts join (select guid, id from ref_info where type like 'rdt.%') ref_info_2 on rdt_id=id
+    left outer join (select rdt_id, ref_info_2.guid, parent_id from public.secondaryrdts join (select guid, id from public.ref_info where type like 'rdt.%') ref_info_2 on rdt_id=id
     ) as S on rdts.id = S.parent_id)
   order by type, modifier, name, secondary_id;
 
@@ -90,15 +90,14 @@ create view api_rdts_secondary as
 -- Name: api_rdts; Type: VIEW; Schema: public; Owner: -
 --
 
-drop view if exists api_rdts CASCADE;
-create view api_rdts as 
+create view public.api_rdts as 
   select guid, 
     ref_type,
     modifier,
     name,
     description,
     array_remove(array_agg(secondary_guid), NULL) as secondaryrdts
-   from api_rdts_secondary
+   from public.api_rdts_secondary
   group by guid, ref_type, type, modifier, name, description;
 
 
@@ -113,7 +112,7 @@ CREATE VIEW public.api_durations AS
     api_rdts.name,
     api_rdts.description,
     api_rdts.secondaryrdts
-   FROM public.api_rdts
+   FROM public.api_rdts as api_rdts
   WHERE ((api_rdts.type = 'rdt.duration'::text) OR (api_rdts.type ~~ 'rdt.duration.%'::text));
 
 
@@ -128,7 +127,7 @@ CREATE VIEW public.api_ranges AS
     api_rdts.name,
     api_rdts.description,
     api_rdts.secondaryrdts
-   FROM public.api_rdts
+   FROM public.api_rdts as api_rdts
   WHERE ((api_rdts.type = 'rdt.duration'::text) OR (api_rdts.type ~~ 'rdt.duration.%'::text));
 
 
@@ -187,7 +186,7 @@ CREATE VIEW public.api_targets AS
     api_rdts.name,
     api_rdts.description,
     api_rdts.secondaryrdts
-   FROM public.api_rdts
+   FROM public.api_rdts as api_rdts
   WHERE ((api_rdts.type = 'rdt.target'::text) OR (api_rdts.type ~~ 'rdt.target.%'::text));
 
 
@@ -195,7 +194,7 @@ CREATE VIEW public.api_targets AS
 -- Name: arts; Type: TABLE; Schema: public; Owner: -
 --
 
-DROPT TABLE IF EXISTS public.arts CASCADE;
+DROP TABLE IF EXISTS public.arts CASCADE;
 CREATE TABLE public.arts (
     id smallint NOT NULL,
     name character varying(20) NOT NULL,
@@ -206,7 +205,7 @@ CREATE TABLE public.arts (
 --
 -- Name: art_api_view; Type: VIEW; Schema: public; Owner: -
 --
-DRO VIEW IF EXISTS public.art_api_view CASCADE;
+DROP VIEW IF EXISTS public.art_api_view CASCADE;
 CREATE VIEW public.art_api_view AS
  SELECT arts.id,
     guidv.guid AS type,
@@ -282,7 +281,7 @@ CREATE VIEW public.formview AS
 -- Name: techniques; Type: TABLE; Schema: public; Owner: -
 --
 
-DROP TABLE IF EXISTS public.technqiues CASCADE;
+DROP TABLE IF EXISTS public.techniques CASCADE;
 CREATE TABLE public.techniques (
     art_id smallint NOT NULL,
     style_id smallint NOT NULL
@@ -327,6 +326,16 @@ UNION
   ORDER BY 5, 6, 3;
 
 
+create view public.api_arts as 
+  select art as name,
+    abbrev,
+    style,
+    A.type,
+    guid,
+    starttime as start_time,
+    guids.type as ref_type
+  from (select *, 'art.' || lower(type) as rdt_type from public.artsview) A join public.ref_info as guids on A.art_id = id AND A.rdt_type = guids.type ;  
+
 --
 -- Name: auth_user; Type: TABLE; Schema: public; Owner: -
 --
@@ -345,7 +354,7 @@ CREATE TABLE public.auth_user (
 -- Name: spell_guidelines; Type: TABLE; Schema: public; Owner: -
 --
 
-DROP TABLE IF EXISTS public.spellguidelines CASCADE;
+DROP TABLE IF EXISTS public.spell_guidelines CASCADE;
 CREATE TABLE public.spell_guidelines (
     level smallint NOT NULL,
     style_id smallint DEFAULT 1 NOT NULL,
@@ -533,8 +542,8 @@ CREATE TABLE public.user_session (
 --
 
 DROP TABLE IF EXISTS public.api_session CASCADE;
-create table api_session(
-    id text primary key references auth_user(id) on update cascade on delete cascade,
+create table public.api_session(
+    id text,
     token varchar(1024),
     expires timestamp without time zone not null, 
     key varchar(64)
@@ -905,6 +914,12 @@ ALTER TABLE ONLY public.user_credentials
 ALTER TABLE ONLY public.user_session
     ADD CONSTRAINT user_session_pkey PRIMARY KEY (id);
 
+--
+-- Name: user_session api_session_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_session
+    ADD CONSTRAINT api_session_pkey PRIMARY KEY (id);
 
 --
 -- Name: api_rdts_noguid _RETURN; Type: RULE; Schema: public; Owner: -
@@ -1001,6 +1016,12 @@ ALTER TABLE ONLY public.user_session
     ADD CONSTRAINT user_session_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.auth_user(id) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
+--
+-- Name: user_session api_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_session
+   ADD CONSTRAINT api_session_id_fkey FOREIGN KEY (id) REFERENCES public.auth_user(id) on update cascade on delete cascade;
 --
 -- PostgreSQL database dump complete
 --
