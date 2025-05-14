@@ -22,10 +22,11 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- Name: guids; Type: TABLE; Schema: public; Owner: -
+-- Name: ref_info; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.guids (
+DROP TABLE IF EXISTS public.ref_info CASCADE;
+CREATE TABLE public.ref_info (
     guid uuid NOT NULL,
     type character varying,
     starttime character varying(11) NOT NULL,
@@ -37,6 +38,7 @@ CREATE TABLE public.guids (
 -- Name: rdts; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.rdts CASCADE;
 CREATE TABLE public.rdts (
     id smallint NOT NULL,
     modifier smallint DEFAULT '0'::smallint NOT NULL,
@@ -50,6 +52,7 @@ CREATE TABLE public.rdts (
 -- Name: secondaryrdts; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.secondaryrdts CASCADE;
 CREATE TABLE public.secondaryrdts (
     parent_id smallint NOT NULL,
     rdt_id smallint NOT NULL,
@@ -61,50 +64,42 @@ CREATE TABLE public.secondaryrdts (
 -- Name: api_rdts_secondary; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.api_rdts_secondary AS
- SELECT guids.guid,
-    concat(guids.type, '.', rdts.type) AS type,
-    rdts.modifier,
-    rdts.name,
-    rdts.description,
-    secondary.secondaryrdt
-   FROM ((( SELECT guids_1.guid,
-            guids_1.type,
-            guids_1.starttime,
-            guids_1.id
-           FROM public.guids guids_1
-          WHERE (((guids_1.type)::text ~~ 'rdt.%'::text) OR ((guids_1.type)::text = 'rdt'::text))) guids
-     JOIN public.rdts USING (id))
-     LEFT JOIN ( SELECT guids_1.guid AS secondaryrdt,
-            secondaryrdts.parent_id
-           FROM (public.secondaryrdts
-             JOIN public.guids guids_1 ON ((secondaryrdts.rdt_id = guids_1.id)))
-          WHERE ((guids_1.type)::text ~~ 'rdt.%'::text)) secondary ON ((rdts.id = secondary.parent_id)));
+drop view if exists api_rdts_secondary cascade;
+create view api_rdts_secondary as 
+  select rdtref.guid,
+    rdtref.type as ref_type,
+    rdts.type as type,
+    modifier,
+    name,
+    description,
+    S.rdt_id as secondary_id, 
+    S.guid as secondary_guid
+  from ((( SELECT ref_info_1.guid,
+            ref_info_1.type,
+            ref_info_1.starttime,
+            ref_info_1.id
+           FROM public.ref_info ref_info_1
+          WHERE (((ref_info_1.type)::text ~~ 'rdt.%'::text) OR ((ref_info_1.type)::text = 'rdt'::text))) as rdtref
+    join public.rdts using (id))
+    left outer join (select rdt_id, ref_info_2.guid, parent_id from secondaryrdts join (select guid, id from ref_info where type like 'rdt.%') ref_info_2 on rdt_id=id
+    ) as S on rdts.id = S.parent_id)
+  order by type, modifier, name, secondary_id;
 
 
 --
 -- Name: api_rdts; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.api_rdts AS
- SELECT api_rdts_secondary.guid,
-    api_rdts_secondary.type,
-    api_rdts_secondary.modifier,
-    api_rdts_secondary.name,
-    api_rdts_secondary.description,
-    array_agg(api_rdts_secondary.secondaryrdt) AS secondaryrdts
-   FROM public.api_rdts_secondary
-  WHERE (api_rdts_secondary.secondaryrdt IS NOT NULL)
-  GROUP BY api_rdts_secondary.guid, api_rdts_secondary.type, api_rdts_secondary.modifier, api_rdts_secondary.name, api_rdts_secondary.description
-UNION
- SELECT api_rdts_secondary.guid,
-    api_rdts_secondary.type,
-    api_rdts_secondary.modifier,
-    api_rdts_secondary.name,
-    api_rdts_secondary.description,
-    NULL::uuid[] AS secondaryrdts
-   FROM public.api_rdts_secondary
-  WHERE (api_rdts_secondary.secondaryrdt IS NULL);
+drop view if exists api_rdts CASCADE;
+create view api_rdts as 
+  select guid, 
+    ref_type,
+    modifier,
+    name,
+    description,
+    array_remove(array_agg(secondary_guid), NULL) as secondaryrdts
+   from api_rdts_secondary
+  group by guid, ref_type, type, modifier, name, description;
 
 
 --
@@ -142,17 +137,17 @@ CREATE VIEW public.api_ranges AS
 --
 
 CREATE VIEW public.api_rdts_base AS
- SELECT guids.guid,
-    concat(guids.type, '.', rdts.type) AS type,
+ SELECT ref_info.guid,
+    concat(ref_info.type, '.', rdts.type) AS type,
     rdts.modifier,
     rdts.name,
     rdts.description
-   FROM (( SELECT guids_1.guid,
-            guids_1.type,
-            guids_1.starttime,
-            guids_1.id
-           FROM public.guids guids_1
-          WHERE (((guids_1.type)::text ~~ 'rdt.%'::text) OR ((guids_1.type)::text = 'rdt'::text))) guids
+   FROM (( SELECT ref_info_1.guid,
+            ref_info_1.type,
+            ref_info_1.starttime,
+            ref_info_1.id
+           FROM public.ref_info ref_info_1
+          WHERE (((ref_info_1.type)::text ~~ 'rdt.%'::text) OR ((ref_info_1.type)::text = 'rdt'::text))) ref_info
      JOIN public.rdts USING (id));
 
 
@@ -173,6 +168,7 @@ SELECT
 -- Name: api_spells; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.api_spells;
 CREATE TABLE public.api_spells (
     guid uuid NOT NULL,
     value json NOT NULL
@@ -183,6 +179,7 @@ CREATE TABLE public.api_spells (
 -- Name: api_targets; Type: VIEW; Schema: public; Owner: -
 --
 
+DROP VIEW IF EXISTS public.api_targets;
 CREATE VIEW public.api_targets AS
  SELECT api_rdts.guid,
     api_rdts.type,
@@ -198,6 +195,7 @@ CREATE VIEW public.api_targets AS
 -- Name: arts; Type: TABLE; Schema: public; Owner: -
 --
 
+DROPT TABLE IF EXISTS public.arts CASCADE;
 CREATE TABLE public.arts (
     id smallint NOT NULL,
     name character varying(20) NOT NULL,
@@ -208,19 +206,19 @@ CREATE TABLE public.arts (
 --
 -- Name: art_api_view; Type: VIEW; Schema: public; Owner: -
 --
-
+DRO VIEW IF EXISTS public.art_api_view CASCADE;
 CREATE VIEW public.art_api_view AS
  SELECT arts.id,
     guidv.guid AS type,
     guidv.starttime,
     arts.name,
     arts.abbrev
-   FROM (( SELECT guids.id,
-            guids.guid,
-            guids.type,
-            guids.starttime
-           FROM public.guids
-          WHERE ((guids.type)::text ~~ 'art.%'::text)) guidv
+   FROM (( SELECT ref_info.id,
+            ref_info.guid,
+            ref_info.type,
+            ref_info.starttime
+           FROM public.ref_info
+          WHERE ((ref_info.type)::text ~~ 'art.%'::text)) guidv
      JOIN public.arts ON ((guidv.id = arts.id)));
 
 
@@ -247,7 +245,7 @@ ALTER SEQUENCE public.arts_id_seq OWNED BY public.arts.id;
 --
 -- Name: forms; Type: TABLE; Schema: public; Owner: -
 --
-
+DROP TABLE IF EXISTS public.forms CASCADE;
 CREATE TABLE public.forms (
     art_id smallint NOT NULL,
     style_id smallint NOT NULL
@@ -258,6 +256,7 @@ CREATE TABLE public.forms (
 -- Name: magicstyles; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.magicstyles CASCADE;
 CREATE TABLE public.magicstyles (
     id smallint NOT NULL,
     name character varying(80) NOT NULL
@@ -283,6 +282,7 @@ CREATE VIEW public.formview AS
 -- Name: techniques; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.technqiues CASCADE;
 CREATE TABLE public.techniques (
     art_id smallint NOT NULL,
     style_id smallint NOT NULL
@@ -331,6 +331,7 @@ UNION
 -- Name: auth_user; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.auth_user CASCADE;
 CREATE TABLE public.auth_user (
     id text NOT NULL,
     email character varying,
@@ -344,6 +345,7 @@ CREATE TABLE public.auth_user (
 -- Name: spell_guidelines; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.spellguidelines CASCADE;
 CREATE TABLE public.spell_guidelines (
     level smallint NOT NULL,
     style_id smallint DEFAULT 1 NOT NULL,
@@ -494,6 +496,7 @@ CREATE VIEW public.secondaryranges AS
 -- Name: spells; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.spells CASCADE;
 CREATE TABLE public.spells (
     id integer NOT NULL,
     name character varying(80) NOT NULL,
@@ -505,6 +508,7 @@ CREATE TABLE public.spells (
 -- Name: user_credentials; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.user_credentials CASCADE;
 CREATE TABLE public.user_credentials (
     id text NOT NULL,
     password character varying(1024) NOT NULL,
@@ -516,11 +520,24 @@ CREATE TABLE public.user_credentials (
 -- Name: user_session; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.user_session CASCADE;
 CREATE TABLE public.user_session (
     user_id text,
     expires_at timestamp with time zone NOT NULL,
     id text NOT NULL,
     api_key character varying(255) NOT NULL
+);
+
+--
+-- Name: api_session; Type: TABLE; Schema: public; Owner: -
+--
+
+DROP TABLE IF EXISTS public.api_session CASCADE;
+create table api_session(
+    id text primary key references auth_user(id) on update cascade on delete cascade,
+    token varchar(1024),
+    expires timestamp without time zone not null, 
+    key varchar(64)
 );
 
 
@@ -585,6 +602,13 @@ COPY public.auth_user (id, email, displayname, verified, expires) FROM stdin;
 
 
 --
+-- Data for Name: api_session; Type: TABLE DATA; Schema: public; Owner: -
+-- 
+COPY public.api_session (id, token, expires, key) FROM stdin;
+\.
+
+
+--
 -- Data for Name: forms; Type: TABLE DATA; Schema: public; Owner: -
 --
 
@@ -603,10 +627,10 @@ COPY public.forms (art_id, style_id) FROM stdin;
 
 
 --
--- Data for Name: guids; Type: TABLE DATA; Schema: public; Owner: -
+-- Data for Name: ref_info; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.guids (guid, type, starttime, id) FROM stdin;
+COPY public.ref_info (guid, type, starttime, id) FROM stdin;
 4391b3de-7c34-4ed5-ab86-6c140c566c07	art.form	0767-01-01	1
 2a1bb4fa-09e5-4404-8f79-8098593157b1	art.form	0767-01-01	2
 9f84272e-157c-4c5f-b081-d86ed185adb4	art.form	0767-01-01	3
@@ -622,8 +646,6 @@ dbe9ea30-5646-4287-baea-beba8900f85c	art.technique	0767-01-01	12
 cb9fa868-8d66-43bd-b1f6-2ccd7fdb05a1	art.technique	0767-01-01	13
 c073b9e1-4782-419a-ae23-f2108f8535fd	art.technique	0767-01-01	14
 892b9975-bce2-4a93-bdda-fc6aaea49ae3	art.technique	0767-01-01	15
-c4a4b04a-693a-42a9-9c14-22492cd9d13c	art.form	1220-01-01	18
-5bc42ac4-fde7-4bbd-be7f-43076cff5a8d	art.form	1220-01-01	19
 f9dbb24d-dc43-41cd-abfd-98790dbdc87e	rdt.range	0767-01-01	1
 170fadec-25dc-4869-b656-845c402034c6	rdt.duration	0767-01-01	2
 a95c18a8-979c-4a13-ac03-bd293d3eedb4	rdt.target	0767-01-01	3
@@ -797,11 +819,11 @@ ALTER TABLE ONLY public.forms
 
 
 --
--- Name: guids guids_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ref_info ref_info_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.guids
-    ADD CONSTRAINT guids_pkey PRIMARY KEY (guid, id, starttime);
+ALTER TABLE ONLY public.ref_info
+    ADD CONSTRAINT ref_info_pkey PRIMARY KEY (guid, id, starttime);
 
 
 --
