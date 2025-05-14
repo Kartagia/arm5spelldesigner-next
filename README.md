@@ -235,7 +235,23 @@ npm run heroku:init:win
 
 Ensure at your Heroku account that your application has postgres add-on
 with Heroku dashboard (https://dashboard.heroku.com). 
-- Postgres of Essential-0 is suitable for the proejct. 
+- Postgres of Essential-0 is suitable for the project. 
+
+You may use the project scripts to create an essential-0 database for your project.
+This will add additional cost to your project according to the esseential-0 plan. This
+is up to 5 USD. In my experience it is 5 USD a month regardless the usage. 
+
+#### Unix and Mac users 
+```bash
+npm run heroku:db:create
+```
+
+#### Windows users using command prompt
+
+```cmd.exe
+npm run heroku:db:create
+```
+
 
 ### Creating local database (optional step for developers)
 
