@@ -216,6 +216,9 @@ npm run heroku:db:init:local:win -- local_database
 
 To transfer the database from local_database to the heroku server.
 
+The migration will ask you to config reset of the heroku database by giving the application
+name. The application name is shown in the prompt.
+
 #### Unix and Mac users 
 ```bash
 npm run heroku:db:init -- local_database
@@ -230,6 +233,7 @@ npm run heroku:db:init:win -- local_database
 ### Perform build and commit the "heroku" branch to the heroku remote main. 
 
 By default I do use heroku as the branch containing the heroku main. 
+The script will show output of the deployment build with possible errors.
 
 ```bash
     npm run heroku:deploy
