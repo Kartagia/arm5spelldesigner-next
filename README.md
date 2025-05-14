@@ -249,7 +249,7 @@ npm run heroku:db:create
 #### Windows users using command prompt
 
 ```cmd.exe
-npm run heroku:db:create
+npm run heroku:db:create:win
 ```
 
 
