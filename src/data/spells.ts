@@ -377,7 +377,7 @@ export async function storeSpells(spells: SpellModel[], altered?: UUID[]) {
                     await storeDbSpell(spell).catch( (error) => {
                         console.error("Storing spell %s with guid %s to database failed: %s", spellSignature(spell), spell.guid, error);
                         console.log("Storing spell to the memory cache");
-                        spells.push(spell);
+                        spellStore.push(spell);
                         return spell.guid;
                     });
                 } else {
@@ -387,9 +387,41 @@ export async function storeSpells(spells: SpellModel[], altered?: UUID[]) {
                         console.log("Storing spell to the memory cache");
                         const uuid = await getUUID();
                         console.log("Adding spell with new uuid %s", uuid);
-                        spells.push({...spell, guid: uuid});
+                        spellStore.push({...spell, guid: uuid});
                         return uuid;
                     });
+                }
+            }
+        );
+        // Removing removed spells. 
+        altered.filter( uuid => (!spells.find( spell => (spell?.guid === uuid)))).forEach( 
+            async (uuid) => {
+                /**
+                 * @todo: move to separate command.
+                 */
+                await createApiConnection().then( async dbh => {
+                    await dbh.query("DELETE FROM api_spells WHERE guid=$1", [uuid]).then(
+                        (result) => {
+                            if (result.rowCount) {
+                                // The spell was removed. 
+                                console.log("Deleted %s spell(s) with UUID %s", result.rowCount, uuid);
+                            } else {
+                                // Spell was not removed - removing it from the spells.
+                                const index = spellStore.findIndex( spell => (spell.guid === uuid));
+                                if (index >= 0) {
+                                    console.log("Deleted spell with UUID %s", uuid);
+                                    spellStore.splice(index, 1);
+                                } else {
+                                    console.warn("No spell with UUID %s to delete", uuid);
+                                }
+                            }
+                        }
+                    )
+                }) 
+                const index = reservedUUIDs.indexOf(uuid);
+                if (index >= 0) {
+                    // Remove guid from rerverd guids. 
+                    reservedUUIDs.splice(index, 1);
                 }
             }
         );
