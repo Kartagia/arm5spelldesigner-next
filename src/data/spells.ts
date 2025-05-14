@@ -126,6 +126,7 @@ export interface ApiSpellModel {
     technique: string | Reference<"art.technique">;
     guideline?: UUID;
     traits?: string[];
+    description?: string;
 }
 
 export type NewApiSpellModel = Omit<ApiSpellModel, "guid">
@@ -164,7 +165,8 @@ export async function convertSpellToApi(spell: SpellModel | NewSpellModel): Prom
         target: await createRdtIfNecessary<"Target">(spell.target).then((all) => (all.map(rdt => (rdt.guid as UUID)))),
         size: await createRdtIfNecessary<"Size">(spell.size).then((all) => (all.map(rdt => (rdt.guid as UUID)))),
         other: await createRdtIfNecessary<string>(spell.other).then((all) => (all.map(rdt => (rdt.guid as UUID)))),
-        traits: spell.traits
+        traits: spell.traits,
+        description: spell.description
     };
     if ("guid" in spell && validUUID(spell.guid)) {
         // Not a new spell.
