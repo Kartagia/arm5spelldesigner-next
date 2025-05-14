@@ -339,7 +339,11 @@ export async function storeDbSpell(spell: SpellModel) {
                             throw Error("Could not update existing spell");
                         }
                     }
-                );
+                ).finally( 
+                    () => {
+                        safeRelease(dbh);
+                    }
+                )
             },
             (error: DatabaseError) => {
                 console.error("Storing spell %s to database failed: %s", spellSignature(spell), error);
@@ -415,6 +419,10 @@ export async function storeSpells(spells: SpellModel[], altered?: UUID[]) {
                                     console.warn("No spell with UUID %s to delete", uuid);
                                 }
                             }
+                        }
+                    ).finally( 
+                        () => {
+                            safeRelease(dbh);
                         }
                     )
                 }) 
