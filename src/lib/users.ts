@@ -1,11 +1,13 @@
 
 import { createAuthConnection, escapeIdentifier } from '@/lib/db';
+import { commitTransaction, rollbackTransaction, startTransaction, TransactionOptions } from './transactions';
 import { setPassword, Credentials, checkUserPassword, hashPassword } from './auth';
-import { PoolClient } from 'pg';
+import { PoolClient, DatabaseError } from 'pg';
 import logger = console;
 import { Session } from 'lucia';
 import { timingSafeEqual } from 'node:crypto';
 import { sessionTimeout } from './dbConfig';
+import { safeRelease } from './api_db';
 
 /**
  * Users module for handling users. 
@@ -63,8 +65,8 @@ export async function loginUser(email: string, password: string): Promise<UserIn
     return await createAuthConnection().then(
         async (dbh) => {
             return dbh.query(
-                "select id, email, displayname, verified, expires <= NOW() as expired, "+
-                "password, salt "+
+                "select id, email, displayname, verified, expires <= NOW() as expired, " +
+                "password, salt " +
                 "from auth_user NATURAL JOIN user_credentials where email=$1 AND expires > NOW()",
                 // "SELECT json_build_object(id, email, displayName, verified, expires FROM auth_user NATURAL JOIN user_credentials  WHERE email=$1 AND expires > NOW()",
                 [email]
@@ -74,15 +76,17 @@ export async function loginUser(email: string, password: string): Promise<UserIn
                     throw new Error("Not Found");
                 } else {
                     // Validating the user. 
-                    return {userInfo: {...result.rows[0], password: undefined, salt: undefined}, 
-                    row: {password: result.rows[0].password, salt: result.rows[0].salt}, 
-                    hash: await hashPassword(password, result.rows[0].salt)};
+                    return {
+                        userInfo: { ...result.rows[0], password: undefined, salt: undefined },
+                        row: { password: result.rows[0].password, salt: result.rows[0].salt },
+                        hash: await hashPassword(password.normalize(), result.rows[0].salt)
+                    };
                 }
-              },
+            },
                 (error) => {
                     throw error;
                 }).then(
-                    ({userInfo, row: result, hash : tested }) => {
+                    ({ userInfo, row: result, hash: tested }) => {
                         if (timingSafeEqual(Buffer.from(tested, "hex"), Buffer.from(result.password, "hex"))) {
                             return userInfo;
                         } else {
@@ -110,27 +114,27 @@ export type NewUserInfo = Omit<UserInfo, "id" | "expired">;
  * @param transaction The optional transaction, if the operation is part of a transaction.
  */
 export async function getAllUsers(transaction: PoolClient | undefined = undefined): Promise<UserInfo[]> {
-
+    const transactionInfo: TransactionOptions = {};
     return (transaction ? Promise.resolve(transaction) : createAuthConnection().then(
         async (dbh) => {
-            await dbh.query("begin");
+            transactionInfo.id = await startTransaction(dbh, transactionInfo);
             return dbh;
         })).then(
             async (dbh) => {
                 const result = await dbh.query<UserInfo>("SELECT id, email, displayName, verified, expires <= NOW() as expired FROM auth_users")
                     .then(
                         async (result) => {
-                            if (!transaction) {
-                                await dbh.query("commit");
-                                dbh.release();
+                            if (transactionInfo.id) {
+                                commitTransaction(dbh, transactionInfo);
+                                safeRelease(dbh);
                             }
                             return result;
 
                         },
                         async (error) => {
-                            if (!transaction) {
-                                await dbh.query("rollback");
-                                dbh.release();
+                            if (transactionInfo.id) {
+                                rollbackTransaction(dbh, transactionInfo);
+                                safeRelease(dbh);
                             }
                             throw error;
                         }
@@ -145,61 +149,70 @@ export async function getAllUsers(transaction: PoolClient | undefined = undefine
  * @param details The user details.
  * @param credentials The user credentials.
  * @param transaction The transaction used to add user. 
- * @returns The promsie of completion.
+ * @returns The promsie of created user identifier.
  */
 export async function createUser(details: NewUserInfo, credentials: NewCredentials, transaction: PoolClient | undefined = undefined): Promise<string> {
 
     return new Promise(async (resolve, reject) => {
 
         try {
+            const transactionInfo: TransactionOptions = {};
             const dbh = transaction ?? (await createAuthConnection().then(async (dbh) => {
-                await dbh.query("begin");
-                console.debug("Transaction started");
+                transactionInfo.id = await startTransaction(dbh, transactionInfo);
                 return dbh;
             }).catch((err) => { throw err }));
             try {
 
                 var id = crypto.randomUUID();
-                console.log("Reserverd UUID For user %s", id);
                 const intervalAmount = "'" + Math.max(0, config.userExpiration) + " DAYS'";
                 /**
                  * @todo Remove debug output
                  */
-                await dbh.query("insert into auth_user (id, email, expires) values ($1, $2, NOW() + make_interval(hours=>$3))",
+                await dbh.query("insert into auth_user (id, email, expires) values ($1, $2, NOW() + make_interval(days=>$3))",
                     [
                         id, details.email, sessionTimeout // details.displayName || null, details.verified ?? false
-                    ]);
-                console.log("Created user entry");
-                await setPassword(dbh, id, credentials.password).then(
+                    ]).catch((error) => {
+                        // The PG error happened - determining which field has the problem.
+                        if (error instanceof DatabaseError) {
+                            if (error.code === "23505") {
+                                // The unique constraint failed - this means the email address is invalid.
+                                throw {
+                                    message: "Reserved email address.",
+                                    errors: { "email": ["The email address was not acceptable. Please choose new email address."] }
+                                };
+                            }
+                        }
+                    });
+                console.debug("Created user entry");
+                await setPassword(dbh, id, credentials.password.normalize()).then(
                     (result) => {
-                        console.log("Password set");
                         return result;
                     },
-                    (error) => {
-                        console.error("Could not set password");
-                        throw error;
+                    (error: DatabaseError) => {
+                        console.error("Updatign credentials failed. %s", error);
+                        throw {
+                            message: "Could not set password", errors: {
+                                "api": [error.message],
+                                "general": ["Setting credentials failed"]
+                            }
+                        }
                     }
                 );
-                console.log("Created credentials ");
+                console.debug("Created user credentials set.");
                 // Committing the transaction, if we are doing just one creation.
-                if (!transaction) {
-                    console.log("Committing transaction...");
-                    await dbh.query("commit");
-                    dbh.release();
-                    console.log("Transaction commited");
+                if (transactionInfo.id) {
+                    await commitTransaction(dbh, transactionInfo);
+                    await safeRelease(dbh);
                 }
                 resolve(id);
             } catch (error) {
+                console.error("Adding user failed: %s", error);
                 /**
                  * @todo Error handling returning standardized error as rejection.
                  */
-                if (!transaction) {
-                    console.log("Transaction rolled back");
-                    await dbh.query("rollback");
-                    dbh.release();
-                    console.log("Transaction rolled back successfully");
-                } else {
-                    console.log("Adding user failed");
+                if (transactionInfo.id) {
+                    await rollbackTransaction(dbh, transactionInfo);
+                    await safeRelease(dbh);
                 }
                 throw error;
             }
@@ -215,8 +228,9 @@ export async function createUser(details: NewUserInfo, credentials: NewCredentia
  * @param transaction The transaction the operation is part of.
  */
 export async function createUsers(users: [NewUserInfo, NewCredentials][], transaction: PoolClient | undefined = undefined): Promise<void> {
+    const transactionInfo: TransactionOptions = {};
     const dbh = transaction ?? await createAuthConnection().then(async (dbh) => {
-        await dbh.query("begin");
+        transactionInfo.id = await startTransaction(dbh, transactionInfo);
         return dbh;
     });
     if (dbh) {
@@ -226,15 +240,15 @@ export async function createUsers(users: [NewUserInfo, NewCredentials][], transa
             }
 
             // Committing the changes.
-            if (!transaction) {
-                await dbh.query("commit");
-                dbh.release();
+            if (transactionInfo.id) {
+                await commitTransaction(dbh, transactionInfo);
+                safeRelease(dbh);
             }
         } catch (err) {
             // Rollback on error.
-            if (!transaction) {
-                await dbh.query("rollback");
-                dbh.release();
+            if (transactionInfo.id) {
+                await rollbackTransaction(dbh, transactionInfo);
+                safeRelease(dbh);
             }
             throw err;
         }
@@ -286,21 +300,22 @@ export async function getUserInfo(userId: string, transaction: PoolClient | unde
  * @param transaction A database handle of the transaction. 
  */
 export async function setUserPassword(userId: string, password: string, transaction: PoolClient | undefined = undefined): Promise<void> {
+    const transactionInfo: TransactionOptions = {};
     return (transaction ? Promise.resolve(transaction) : createAuthConnection().then(async dbh => {
-        await dbh.query("begin");
+        transactionInfo.id = await startTransaction(dbh, transactionInfo);
         return dbh;
     })).then(async (dbh) => {
         try {
             await setPassword(dbh, userId, password);
             await updateUser({ id: userId }, dbh);
-            if (!transaction) {
-                await dbh.query("commit");
-                dbh.release();
+            if (transactionInfo.id) {
+                commitTransaction(dbh, transactionInfo);
+                safeRelease(dbh);
             }
         } catch (err) {
-            if (!transaction) {
-                await dbh.query("rollback");
-                dbh.release();
+            if (transactionInfo.id) {
+                rollbackTransaction(dbh, transactionInfo);
+                safeRelease(dbh);
             }
             throw err;
         }
@@ -391,23 +406,32 @@ export async function updateUser(details: Partial<Omit<UserInfo, "expired">>, tr
  */
 export async function deleteUser(details: UserInfo, transaction: PoolClient | undefined = undefined): Promise<void> {
     return new Promise(async (resolve, reject) => {
-        const dbh = transaction ?? await createAuthConnection();
-        if (!transaction) {
-            await dbh.query("begin");
-        }
-        try {
-            const userInfo = await getUserInfo(details.id, dbh);
-            await dbh.query("DELETE FROM auth_user WHERE id=$1", [userInfo.id]);
-            if (!transaction) {
-                await dbh.query("commit");
-                dbh.release();
+        const transactionInfo: TransactionOptions = {};
+        const dbh = transaction ?? await createAuthConnection().then(
+            async (dbh) => {
+                transactionInfo.id = await startTransaction(dbh, transactionInfo);
+                return dbh;
+            },
+            (error: DatabaseError) => {
+                reject({ message: "Service not available", errorCode: 403 });
+                return undefined;
             }
-        } catch (err) {
-            if (!transaction) {
-                await dbh.query("rollback");
-                dbh.release();
+        );
+        if (dbh) {
+            try {
+                const userInfo = await getUserInfo(details.id, dbh);
+                await dbh.query("DELETE FROM auth_user WHERE id=$1", [userInfo.id]);
+                if (transactionInfo.id) {
+                    commitTransaction(dbh, transactionInfo);
+                    safeRelease(dbh);
+                }
+            } catch (err) {
+                if (transactionInfo.id) {
+                    rollbackTransaction(dbh, transactionInfo);
+                    safeRelease(dbh);
+                }
+                reject(err);
             }
-            reject(err);
         }
     });
 }

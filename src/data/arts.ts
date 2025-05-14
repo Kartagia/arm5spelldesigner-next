@@ -11,7 +11,7 @@ export async function getAllArts(): Promise<ArtModel[]> {
         dbh = await pool.connect();
         console.log("Connection established");
         const result = await dbh.query<ArtModel>(
-            "select guid, abbrev, art, artsview.type as type from (select * from guids where type like 'art.%') as guid join artsview on id = art_id;"
+            "select guid, abbrev, art, artsview.type as type from (select * from ref_info as guids where type like 'art.%') as guid join artsview on id = art_id;"
             );
         console.log("Loaded %d arts", result.rowCount);
         return result.rows;

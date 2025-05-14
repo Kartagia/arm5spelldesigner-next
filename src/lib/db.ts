@@ -1,6 +1,8 @@
 import 'server-only';
 import { Client, escapeIdentifier, escapeLiteral, Pool, PoolClient, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 import { getApiDatabaseProperties, getAuthDatabaseProperties, getTestAuthDatabaseProperties } from './dbConfig';
+import { commitTransaction, rollbackTransaction, startTransaction, TransactionOptions } from './transactions';
+import { safeRelease } from './api_db';
 export { escapeIdentifier, escapeLiteral } from 'pg';
 /**
  * The database connection module.
@@ -57,7 +59,7 @@ export function initPool(config: Partial<PoolConfig> | undefined = undefined, de
  * exists.
  * @returns The promise of the assigned pool. 
  */
-export async function initAuthPool(config: Partial<PoolConfig> | undefined): Promise<Pool> {
+export async function initAuthPool(config?: Partial<PoolConfig> | undefined): Promise<Pool> {
     return initPool(config, getAuthDatabaseProperties(), authPool).then(
         (result) => {
             authPool = result;
@@ -1040,10 +1042,15 @@ export async function deleteApiDb(dbh: PoolClient | Client, {
  * @param pool The connection pool.
  * @returns The promise of a connection handling the transaction.
  */
-export async function createTransaction(pool: Pool): Promise<PoolClient> {
+export async function createTransaction(pool: Pool, options: TransactionOptions = {}): Promise<[PoolClient, TransactionOptions] | [PoolClient]> {
     return await pool.connect().then(async (connection) => {
-        await connection.query("start transaction");
-        return connection;
+        const transactionName = await startTransaction(connection, options);
+        if (transactionName) {
+            options.id = transactionName;
+            return [connection, options]
+        } else {
+            return [connection];
+        }
     });
 }
 /**
@@ -1057,18 +1064,18 @@ export async function createTransaction(pool: Pool): Promise<PoolClient> {
 export function apiQuery<RESULT extends QueryResultRow = any>(sql: string, params: any[], transaction: PoolClient | undefined = undefined): Promise<QueryResult<RESULT>> {
     return new Promise(async (resolve, reject) => {
         if (apiPool) {
-            const dbh = transaction ?? (await createTransaction(apiPool));
+            const [dbh, transactionInfo = undefined] = transaction ? [transaction] : (await createTransaction(apiPool));
             try {
                 const result: QueryResult<RESULT> = await dbh.query(sql, params);
-                if (!transaction) {
-                    await dbh.query("commit");
-                    dbh.release();
+                if (transactionInfo) {
+                    commitTransaction(dbh, transactionInfo);
+                    safeRelease(dbh);
                 }
                 resolve(result);
             } catch (error) {
-                await dbh.query("rollback");
-                if (!transaction) {
-                    dbh.release();
+                if (transactionInfo) {
+                    rollbackTransaction(dbh, transactionInfo);
+                    safeRelease(dbh);
                 }
                 reject(error);
             }
@@ -1092,20 +1099,20 @@ export function apiQuery<RESULT extends QueryResultRow = any>(sql: string, param
 export function authQuery<RESULT extends QueryResultRow>(sql: string, params: any[], transaction: PoolClient | undefined = undefined) {
     return new Promise(async (resolve, reject) => {
         if (authPool) {
-            const dbh = transaction ?? (await createTransaction(authPool));
+            const [dbh, transactionInfo = undefined] = transaction ? [transaction] : (await createTransaction(authPool));
             try {
                 const result: QueryResult<RESULT> = await dbh.query(sql, params);
-                if (!transaction) {
-                    await dbh.query("commit");
+                if (transactionInfo) {
+                    commitTransaction(dbh, transactionInfo);
+                    safeRelease(dbh);
                 }
                 resolve(result);
             } catch (error) {
-                await dbh.query("rollback");
-                reject(error);
-            } finally {
-                if (!transaction) {
-                    dbh.release();
+                if (transactionInfo) {
+                    rollbackTransaction(dbh, transactionInfo);
+                    safeRelease(dbh);
                 }
+                reject(error);
             }
         } else {
             reject("NOT_CONNECTED_ERROR");

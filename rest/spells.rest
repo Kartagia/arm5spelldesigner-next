@@ -1,4 +1,54 @@
-GET http://localhost:3000/arm5
-Content-Type: application/json
-x-openapi-token: $DATA_API_KEY
 
+@admin_api_key={{$dotenv DATA_API_KEY}}
+@user_api_key={{$dotenv USER_API_KEY}}
+@api_user={{$dotenv API_USER}}
+@api_secret={{$dotenv API_PASSWORD}}
+@api_host=https://arm5spelldesigner-64b342af19e4.herokuapp.com/
+
+###
+GET {{api_host}}arm5/spellguidelines
+Accept: application/json
+x-openapi-token: {{admin_api_key}}
+
+
+### Get all arts
+
+GET {{api_host}}arm5/arts
+Accept: application/json
+x-openapi-token: {{admin_api_key}}
+
+### Get all arts with user key
+
+GET {{api_host}}arm5/arts
+Accept: application/json
+x-openapi-token: {{user_api_key}}
+
+
+### Get all spells
+
+GET {{api_host}}arm5/spells
+x-openapi-token: {{admin_api_key}}
+Accept: application/json
+
+
+### With user api key
+GET {{api_host}}arm5/spells
+x-openapi-token: {{user_api_key}}
+Accept: application/json
+
+### Get all arts with cookie.
+GET {{api_host}}arm5/arts
+x-openapi-token: {{admin_api_key}}
+Accept: application/json
+Cookie: x-openapi-token={{admin_api_key}}; Path=/;Expires={{$timestamp +1 d}}
+
+
+### Login.
+POST {{api_host}}arm5/login
+Content-Type: application/json
+x-openapi-token: {{admin_api_key}}
+
+{
+    "user": "{{api_user}}",
+    "password": "{{api_secret}}"
+}

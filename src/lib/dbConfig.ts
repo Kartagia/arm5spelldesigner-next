@@ -6,7 +6,11 @@ import { PoolOptions } from 'pg';
  * @module config/db
  */
 
-export const sessionTimeout = 30;
+export const sessionTimeout = 1;
+export const apiSessionTimeout = 30;
+export const auth_database = "user_credentials";
+export const sessionDatabase = "user_session";
+export const userDatabase = "auth_user";
 
 /**
  * Get the pool options for the authentication database.
@@ -14,18 +18,29 @@ export const sessionTimeout = 30;
  */
 
 export function getAuthDatabaseProperties(): Partial<PoolOptions> {
-    if (process.env.AUTH_CONNECT) {
-        return {
-            connectionString: process.env.AUTH_CONNECT
-        };
+    if (process.env.AUTH_CONNECT ?? process.env.DATABASE_URL) {
+        const url = process.env.AUTH_CONNECT ?? process.env.DATABASE_URL;
+        if (url && /^socket:|^\//.test(url)) {
+            return {
+                connectionString: url
+            }
+        } else {
+            return {
+                connectionString: process.env.AUTH_CONNECT ?? process.env.DATABASE_URL,
+                ssl: {
+                    rejectUnauthorized: false
+                }
+            };
+        }
     } else {
-
         return {
             database: process.env.AUTH_DATABASE,
             user: process.env.AUTH_USER,
             host: process.env.AUTH_HOST,
             port: Number(process.env.AUTH_PORT ?? "5432"),
             password: process.env.AUTH_PASSWORD,
+            idleTimeoutMillis: 100,
+            connectionTimeoutMillis: 500
         };
     }
 }/**
@@ -46,6 +61,7 @@ export function getTestAuthDatabaseProperties(): Partial<PoolOptions> {
             host: process.env.VITE_AUTH_HOST,
             port: Number(process.env.VITE_AUTH_PORT ?? "5432"),
             password: process.env.VITE_AUTH_PASSWORD,
+            connectionTimeoutMillis: 1000
         };
     }
 }
@@ -55,10 +71,20 @@ export function getTestAuthDatabaseProperties(): Partial<PoolOptions> {
  */
 
 export function getApiDatabaseProperties(): Partial<PoolOptions> {
-    if (process.env.DATA_CONNECT) {
-        return {
-            connectionString: process.env.DATA_CONNECT
-        };
+    if (process.env.DATA_CONNECT ?? process.env.DATABASE_URL) {
+        const url = process.env.DATA_CONNECT ?? process.env.DATABASE_URL;
+        if (url && /^socket:|^\//.test(url)) {
+            return {
+                connectionString: url
+            }
+        } else {
+            return {
+                connectionString: process.env.DATA_CONNECT ?? process.env.DATABASE_URL,
+                ssl: {
+                    rejectUnauthorized: false
+                }
+            };
+        }
     } else {
         return {
             database: process.env.DATA_DATABASE,

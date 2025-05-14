@@ -1,0 +1,30 @@
+.gdpr {
+    font-family: Calibri, 'Trebuchet MS', sans-serif;
+    scrollbar-width: 2px;
+    height: 100%;
+    flex: 1 1 auto;
+}
+
+.gdpr > div {
+    overflow-y: scroll;
+    scrollbar-width: 1px;
+}
+
+.gdpr main {
+    scrollbar-width: 1px;
+}
+
+
+.gdpr header {
+    scrollbar-width: 1px;
+}
+
+
+.gdpr  header {
+    font-size: larger;
+    font-weight: bolder;
+}
+
+.gdpr ul {
+    list-style: circle;
+}

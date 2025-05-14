@@ -1,8 +1,10 @@
 
 import 'server-only';
-import { Client, PoolClient } from 'pg';
+import { Client, DatabaseError, PoolClient } from 'pg';
 import { randomBytes, pbkdf2, timingSafeEqual, randomUUID, pbkdf2Sync } from 'node:crypto';
 import { Console, ConsoleConstructorOptions } from 'node:console';
+import { safeRelease } from './api_db';
+import { commitTransaction, releaseSavepoint, rollbackTransaction, startTransaction, TransactionOptions } from './transactions';
 
 class DebugConsole extends Console {
 
@@ -243,8 +245,9 @@ export function validPassword(value: string): boolean {
  * - String indicates the name of the savepoint. 
  * - Boolean true indicates the current transaction is operated.
  * Defaults to a new autocommited transaction.
- * - A null value indicates the handle is closed at teh end of the operation. 
+ * - A null value indicates the handle is closed at the end of the operation. 
  * @returns The promise of completion.
+ * @throws {DatabaseError} The rejected value contains the database error of the failure.
  */
 export async function setPassword(dbh: Client|PoolClient, userId: string, password: string,
     transaction: boolean| string | null = null): Promise<void> {
@@ -254,9 +257,13 @@ export async function setPassword(dbh: Client|PoolClient, userId: string, passwo
     }
 
     return new Promise(async (resolve, reject) => {
+        const transactionInfo: TransactionOptions = {};
+        if (typeof transaction === "string") {
+            transactionInfo.savePoint = transaction;
+        }
         try {
             if (transaction === false) {
-                await dbh.query("start transaction");
+                transactionInfo.id = await startTransaction(dbh, transactionInfo);
             }
             const salt = await generateSalt();
             await dbh.query(
@@ -264,29 +271,36 @@ export async function setPassword(dbh: Client|PoolClient, userId: string, passwo
                 "VALUES ($1, $2, $3)",
                 [userId, await hashPassword(password, salt), salt]
             );
-            logger.log("The password set for user %s", userId);
-            if (!transaction) {
-                await dbh.query("commit");
+            if (transactionInfo.savePoint) {
+                if (await releaseSavepoint(dbh, transactionInfo)) {
+                    // Removing the savepoint. 
+                    delete(transactionInfo.savePoint);
+                }
+            } else if (!transaction) {
+                if (await commitTransaction(dbh, transactionInfo) && transactionInfo.id) {
+                    delete(transactionInfo.id);
+                }
             }
+            resolve();
         } catch (error) {
             // Error handling.
             logger.error("setPassword: Could not update user credentials", error);
-            if (typeof transaction == "string") {
-                dbh.query("rollback to " + transaction);
-            }
-            if (transaction !== false && transaction !== null) {
-                dbh.query("rollback");
-            }
-            throw error;
-        } finally {
-            if (transaction === null) {
-                if ("release" in dbh) {
-                    dbh.release();
-                } else {
-                    dbh.end();
+            if (transactionInfo.savePoint) {
+                if (await rollbackTransaction(dbh, transactionInfo)) {
+                    delete(transactionInfo.savePoint);
+                }
+            } else if (transaction !== false && transaction !== null) {
+                if (await rollbackTransaction(dbh, transactionInfo) && transactionInfo.id) {
+                    delete(transactionInfo.id);
                 }
             }
+            reject(error);
+        } finally {
+            if (transaction === null) {
+                safeRelease(dbh);
+            }
         }
+
     });
 }
 

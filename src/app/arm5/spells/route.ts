@@ -11,11 +11,17 @@ import { SpellModel, validRDT } from '@/lib/spells';
 import { checkUUID, validUUID } from '@/lib/modifiers';
 import { randomUUID, UUID } from 'crypto';
 import { logger, validateApiRequest } from '@/lib/api_auth';
+import { safeRelease } from "@/lib/api_db";
+import { ErrorReply } from "@/lib/api_data";
 
 export const revalidate = 0;
 
 
-
+/**
+ * Get all spells. 
+ * @param request The API request.
+ * @returns The reply to the request. 
+ */
 export async function GET(request: Request) {
     const privileges = await validateApiRequest(request);
     if (privileges.apiKey || privileges.cookieKey) {
@@ -32,12 +38,12 @@ export async function GET(request: Request) {
             }
         ).then(async dbh => {
             logger.debug("Connection established");
-            return await dbh.query<[UUID, SpellModel]>("SELECT guid, value FROM api_spells").then(
+            const result =  await dbh.query<{guid: UUID, value: SpellModel}>("SELECT guid, value FROM api_spells").then(
                 (result) => {
                     logger.info("Responding with %d spells", result.rowCount);
                     return Response.json(result.rows.map((spell) => {
                         try {
-                            const [guid, value] = spell;
+                            const {guid, value} = spell;
                             return [checkUUID(guid), value];
                         } catch (error) {
                             if (Array.isArray(spell)) {
@@ -51,12 +57,14 @@ export async function GET(request: Request) {
                 (error) => {
                     // The error.
                     logger.error("Fetching all spells failed %s", error);
+                    return ErrorReply(503, "Spells API not available at the moemnt");
                 }
 
             ).finally(() => {
-                dbh.release();
+                safeRelease(dbh);
                 logger.debug("Database released");
             });
+            return result;
         });
     } else {
         return Response.json({ message: "Authentication required", code: 401 }, { status: 401 });
@@ -78,15 +86,21 @@ function getInvalidSpellProperties(value: any): { propertyName: string, message?
      */
     const invalidProperties: { propertyName: string, message?: string, error?: { message?: string, errorCode?: number } }[] = [];
     ([ 
-        ...["name"].map( (prop) => ([prop, ((value: any) => (prop in value && typeof value[prop] === "string" && value[prop]))])), 
-        ...["level"].map( (prop) => ([prop, ((value: any) => (prop in value && value[prop] === "Generic" || Number.isSafeInteger(Number(value[prop])))) ])), 
+        ...["name"].map( (prop) => ([prop, (
+            (value: any) => (typeof value === "string" && /^(?:\p{Lu}|\p{Lt})\p{Ll}+(?:(?:, |[ -])[\p{L}\p{N}]+)*$/u.test(value.normalize())))])), 
+        ...["level"].map( (prop) => 
+            ([prop, ((value: any) => (
+                (typeof value === "string" && value === "Generic") || 
+                Number.isSafeInteger(value))) ])), 
     ...["range", "duration", "target"].map(
         (prop) => {
-            return [prop, (value: any) => (value instanceof Object && (!(prop in value) || (validUUID(value[prop]) || validRDT(value[prop]))))]
+            return [prop, (value: any) => (value === undefined || 
+                (Array.isArray(value) && value.length > 0 && value.every(validUUID)))]
         }
     )]  as [string, Function][]).forEach( ([prop, validator]:[string, Function]) => {
         try {
             if (!validator(value[prop])) {
+                console.debug(`Invalid ${prop}: ${value[prop]}`);
                 throw Error("Property name failed validation");
             }
         } catch (error) {
@@ -117,7 +131,7 @@ export async function POST(request: Request) {
             // Invalid content type.
             return Response.json({ message: "Invalid content type", code: 422 }, { status: 400 })
         }
-        const newSpell = request.json();
+        const newSpell = await request.json();
         const invalidProperties = getInvalidSpellProperties(newSpell);
         if (invalidProperties.length > 0) {
             return Response.json({
@@ -141,11 +155,12 @@ export async function POST(request: Request) {
             }
         ).then(async dbh => {
             logger.debug("Connection established");
-            return await dbh.query("INSERT INTO api_spells(id, value) VALUES ($1, $2) RETURNING (id)", [
+            return await dbh.query("INSERT INTO api_spells(guid, value) "+
+                "VALUES ($1, $2) RETURNING (guid)", [
                 randomUUID(), newSpell
             ]).then(
                 (result) => {
-                    const id = result.rows[0].id;
+                    const id = result.rows[0].guid;
                     logger.info("Adding new spell with UUID %s", id);
                     return Response.json(id);
                 },

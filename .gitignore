@@ -60,3 +60,5 @@ script
 
 # Ignore sqls
 *.sql
+test.dump
+latest.dump
