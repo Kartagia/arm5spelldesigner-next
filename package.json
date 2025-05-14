@@ -27,7 +27,7 @@
     "heroku:db:init:local": "echo local database initialization not yet supported",
     "heroku:db:destroy": "echo Destroying database ${1:-heroku-postgresql} not supported && heroku addons:destory ${1:-heroku-postgresql}",
     "heroku:deploy": "npm run build && git push heroku heroku:main",
-    "heroku:deploy:win": "npm run build && git push heroku heroku:main",
+    "heroku:deploy:win": "git push heroku heroku:main",
     "dbadmin": "tsc && node ./script/dbadmin"
   },
   "dependencies": {
