@@ -196,16 +196,38 @@ Ensure at your Heroku account that your application has postgres add-on
 with Heroku dashboard (https://dashboard.heroku.com). 
 - Postgres of Essential-0 is suitable for the proejct. 
 
+### Creating local database (optional step for developers)
+
+Create local database. The local database must exist, but it will be clean built.
+
+#### Unix and Mac users 
+```bash
+npm run heroku:db:init:local -- local_database
+```
+
+#### Windows users using command prompt
+
+```cmd.exe
+npm run heroku:db:init:local:win -- local_database
+```
+
+
 ### Transfer database to Heroku (if it is not yet there)
 
-```bash
+To transfer the database from local_database to the heroku server.
 
+#### Unix and Mac users 
+```bash
+npm run heroku:db:init -- local_database
 ```
 
-```bash
+#### Windows users using command prompt
+
+```cmd.exe
+npm run heroku:db:init:win -- local_database
 ```
 
-### Perform build and commit the "heroku" branch ot the heroku remote main. 
+### Perform build and commit the "heroku" branch to the heroku remote main. 
 
 By default I do use heroku as the branch containing the heroku main. 
 
