@@ -246,6 +246,7 @@ export async function convertApiToSpell(spellApi: ApiSpellModel): Promise<SpellM
         range: await getRDTValue<"Range">(spellApi.range, "Range"),
         duration: await getRDTValue<"Duration">(spellApi.duration, "Duration"),
         target: await getRDTValue<"Target">(spellApi.target, "Target"),
+        description: spellApi.description
     };
     console.groupEnd();
     return checkSpell(result);
