@@ -33,6 +33,16 @@ directory of the project.
 These variables determines the API access values.
 They may be set in user's environment, or in the user environment file .env.
 
+The development settigns may assign development specific variables to the ".env.development", but the 
+shared environment file ".env" overwrites any changes in that file. 
+
+Similar fashion the production specific variables may be put into the ".env.production", but the 
+shared environment file ".env" overwrites any changes in that file. 
+
+Test environment may be assigned to the ".env.test", but test environment variables has to be given
+"VITE_"-prefix due vitest security protecting the environment from test environment.
+
+
 |Variable|Scope|Description|Default|
 | :---: | :---: | :---: | :---: |
 |DATA_CONNECT|Api|The database connection URL for api database|The enviromental variable DATABASE_URL|
@@ -47,6 +57,15 @@ They may be set in user's environment, or in the user environment file .env.
 
 These variables determiens the authentication database access. They may be set in the 
 user's environment, or in the user environment file .env.
+
+The development settigns may assign development specific variables to the ".env.development", but the 
+shared environment file ".env" overwrites any changes in that file. 
+
+Similar fashion the production specific variables may be put into the ".env.production", but the 
+shared environment file ".env" overwrites any changes in that file. 
+
+Test environment may be assigned to the ".env.test", but test environment variables has to be given
+"VITE_"-prefix due vitest security protecting the environment from test environment.
 
 |Variable|Scope|Description|Default|
 | :---: | :---: | :---: | :---: |
@@ -70,6 +89,15 @@ sequence, and reference priviledges for the database.
 The administartor access uses corresponding user database variables except connection, user, and password
 variables, which are replaced with variables: 
 
+The development settigns may assign development specific variables to the ".env.development", but the 
+shared environment file ".env" overwrites any changes in that file. 
+
+Similar fashion the production specific variables may be put into the ".env.production", but the 
+shared environment file ".env" overwrites any changes in that file. 
+
+Test environment may be assigned to the ".env.test", but test environment variables has to be given
+"VITE_"-prefix due vitest security protecting the environment from test environment.
+
 |Variable|Type|Description|Default|
 | :---: | :---: | :---: | :---: |
 |DATA_ADMIN_CONNECT|Api|The administrator database connection URL for api database|The api database connection url (process.env.DATA_CONNECT) or use variables below|
@@ -83,7 +111,20 @@ variables, which are replaced with variables:
 
 ## Database initialization
 
-Database initialization must be performed from database dump at the moment.
+The heroku database initialization can be used to populate existing local database.
+Replace the "local_database" with local database used for the application. Update the database
+connection to the .env files or environmental variables. 
+
+#### Unix and Mac users 
+```bash
+npm run heroku:db:init:local -- local_database
+```
+
+#### Windows users using command prompt
+
+```cmd.exe
+npm run heroku:db:init:local:win -- local_database
+```
 
 ## Running 
 
